@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.19.0 — 2026-09-26
+
+- **Link dialog (WordPress-style)** replaces the old address prompt. Open it with 🔗 or Ctrl+K.
+  - Paste an address, or type a few words to search this blog's **published posts and pages**. No drafts, categories or media are offered. Use the arrow keys and Enter, or tap a result.
+  - *Open in a new tab* adds `target="_blank" rel="noopener"`.
+  - If the cursor or selection touches a link, even partly, the dialog edits that link and shows **Unlink**. Unlink keeps the text.
+  - With nothing selected, the link is inserted with the post's title (or the address) as its text.
+- **Toolbar:** the Image button now comes right after H3, so it's visible on a phone without scrolling.
+- **Phones:** at the end of the menu or the toolbar, the › hint turns into a ‹ on the left to scroll back.
+- **"View blog ↗"** is now a button right below *My account*, and on phones at the end of the menu.
+- **Posts:** a **✏️ Write new** button right after the status tabs. **Pages:** *+ New page* moved there too, instead of the far right corner, where it was off-screen on phones.
+
 ## 0.18.0 — 2026-09-26
 
 - **Self-resetting demo mode** for a public "try it" site. Set `demo`, `demo_reset_minutes` and `demo_key` in `config.php` (see the README).

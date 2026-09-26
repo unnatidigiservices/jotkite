@@ -256,6 +256,25 @@ if (!$user) {
 
 pb_version_check();
 
+// Link dialog search (editor): published posts and pages only — no drafts,
+// categories or media — newest first. Empty query = the 10 most recent.
+if (($_GET['ajax'] ?? '') === 'links') {
+    if (!pb_can($user, 'post.create')) pb_json([], 403);
+    $q = trim((string) ($_GET['q'] ?? ''));
+    $where = "status = 'published' AND published_at <= ?";
+    $params = [pb_now()];
+    if ($q !== '') {
+        $where .= " AND (title LIKE ? ESCAPE '\\' OR slug LIKE ? ESCAPE '\\')";
+        $like = '%' . addcslashes($q, '%_\\') . '%';
+        array_push($params, $like, $like);
+    }
+    $out = [];
+    foreach (pb_all("SELECT slug, title, type, published_at FROM posts WHERE {$where} ORDER BY type = 'page', published_at DESC LIMIT " . ($q === '' ? 10 : 20), $params) as $r) {
+        $out[] = ['title' => $r['title'], 'url' => pb_url('post', $r['slug']), 'type' => $r['type'], 'date' => $r['type'] === 'post' ? pb_format_date($r['published_at']) : ''];
+    }
+    pb_json($out);
+}
+
 // ============================================================================
 // POST ACTIONS (all CSRF-checked, all permission-checked in the library)
 // ============================================================================
@@ -593,13 +612,14 @@ if ($view === 'edit') {
       <button type="button" data-cmd="italic" title="Italic (Ctrl+I)"><i>I</i></button>
       <button type="button" data-cmd="h2" title="Heading">H2</button>
       <button type="button" data-cmd="h3" title="Subheading">H3</button>
+      <?php /* Image early in the row: on a phone it's visible without scrolling the toolbar. */ ?>
+      <button type="button" data-cmd="image" title="Insert image">🖼 Image</button>
       <span class="pb-tsep"></span>
-      <button type="button" data-cmd="link" title="Link">🔗</button>
+      <button type="button" data-cmd="link" title="Link (Ctrl+K)">🔗</button>
       <button type="button" data-cmd="insertUnorderedList" title="Bullet list">• List</button>
       <button type="button" data-cmd="insertOrderedList" title="Numbered list">1. List</button>
       <button type="button" data-cmd="blockquote" title="Quote">❝</button>
       <span class="pb-tsep"></span>
-      <button type="button" data-cmd="image" title="Insert image">🖼 Image</button>
       <button type="button" data-cmd="video" title="Embed YouTube or Vimeo">▶ Video</button>
       <button type="button" data-cmd="removeFormat" title="Clear formatting">⌫</button>
       <button type="button" data-cmd="source" title="Edit HTML" class="pb-tright">&lt;/&gt;</button>
@@ -629,6 +649,20 @@ if ($view === 'edit') {
       <button type="button" data-img-act="remove" title="Remove" class="pb-danger-text">✕</button>
     </div>
     <input type="file" id="pbImageFile" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
+    <div class="pb-linkdlg" id="pbLinkDlg" hidden role="dialog" aria-modal="true" aria-labelledby="pbLinkTitle">
+      <div class="pb-linkdlg-box">
+        <h3 class="pb-h3" id="pbLinkTitle">Insert link</h3>
+        <label class="pb-small">Address, or search your posts and pages
+          <input type="text" id="pbLinkUrl" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="https://… or type a few words" aria-controls="pbLinkResults"></label>
+        <ul class="pb-link-results" id="pbLinkResults" role="listbox" aria-label="Posts and pages"></ul>
+        <label class="pb-check pb-small"><input type="checkbox" id="pbLinkNewTab"> Open in a new tab</label>
+        <div class="pb-linkdlg-actions">
+          <button type="button" class="pb-btn pb-btn-danger" id="pbLinkUnlink" hidden>Unlink</button>
+          <button type="button" class="pb-btn" data-link-close>Cancel</button>
+          <button type="button" class="pb-btn pb-btn-primary" id="pbLinkApply">Apply</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <aside class="pb-side">
@@ -1246,9 +1280,9 @@ if ($view === 'edit') {
   <?php foreach ($tabs as $k => [$label]): if ($k !== 'all' && $k !== $tab && !$counts[$k]) continue; ?>
     <a href="<?= pb_e(pb_admin_url('tab=' . $k . $typeQs . ($mine && $isEditor ? '&mine=1' : ''))) ?>" class="<?= $k === $tab ? 'active' : '' ?>"><?= pb_e($label) ?> <span><?= $counts[$k] ?></span></a>
   <?php endforeach; ?>
-  <?php if ($ptype === 'page'): ?>
-    <a class="pb-tabs-right pb-btn pb-btn-primary pb-btn-sm" href="<?= pb_e(pb_admin_url('view=edit&type=page')) ?>">+ New page</a>
-  <?php elseif ($isEditor): ?>
+  <?php /* Right after the status tabs, where it stays visible on a phone (not off in the far corner). */ ?>
+  <a class="pb-btn pb-btn-primary pb-btn-sm pb-tabs-new" href="<?= pb_e(pb_admin_url($ptype === 'page' ? 'view=edit&type=page' : 'view=edit')) ?>"><?= $ptype === 'page' ? '+ New page' : '✏️ Write new' ?></a>
+  <?php if ($ptype !== 'page' && $isEditor): ?>
     <a class="pb-tabs-right" href="<?= pb_e(pb_admin_url('tab=' . $tab . ($mine ? '' : '&mine=1'))) ?>"><?= $mine ? 'Show everyone\'s posts' : 'Only my posts' ?></a>
   <?php endif; ?>
 </div>
@@ -1319,11 +1353,9 @@ $nav = [
         <a href="<?= pb_e(pb_admin_url($key === 'pages' ? 'view=posts&type=page' : 'view=' . $key)) ?>" class="<?= $active ? 'active' : '' ?>"><span aria-hidden="true"><?= $icon ?></span> <?= pb_e($label) ?>
           <?php if ($key === 'posts' && ($pendingCount || $myChanges)): ?><em class="pb-count-badge" title="<?= $isEditor ? 'Waiting for your review' : 'Changes requested' ?>"><?= $isEditor ? $pendingCount : $myChanges ?></em><?php endif; ?></a>
       <?php endforeach; ?>
+      <a href="<?= pb_e(pb_url()) ?>" target="_blank" rel="noopener" class="pb-nav-blog">View blog ↗</a>
     </nav>
-    <div class="pb-sidebar-foot">
-      <?php if ($georankUrl): ?><a href="<?= pb_e($georankUrl) ?>">← GeoRank dashboard</a><?php endif; ?>
-      <a href="<?= pb_e(pb_url()) ?>" target="_blank" rel="noopener">View blog ↗</a>
-    </div>
+    <?php if ($georankUrl): ?><div class="pb-sidebar-foot"><a href="<?= pb_e($georankUrl) ?>">← GeoRank dashboard</a></div><?php endif; ?>
   </aside>
   <div class="pb-main">
     <header class="pb-topbar">
@@ -1356,7 +1388,7 @@ $nav = [
       <div class="pb-flash pb-flash-<?= pb_e($type) ?>" role="status"><?= pb_e($msg) ?></div>
     <?php endforeach; ?>
     <?= $content ?>
-    <footer class="pb-admin-foot"><span class="pb-mobile-only"><a href="<?= pb_e(pb_url()) ?>" target="_blank" rel="noopener">View blog ↗</a> · <?php if ($georankUrl): ?><a href="<?= pb_e($georankUrl) ?>">GeoRank dashboard</a> · <?php endif; ?></span>Unnati PostBase <?= pb_e(PB_VERSION) ?> · <a href="<?= PB_HOMEPAGE ?>" target="_blank" rel="noopener">Help &amp; support</a> · <a href="<?= PB_REPO_URL ?>" target="_blank" rel="noopener">GitHub</a></footer>
+    <footer class="pb-admin-foot"><span class="pb-mobile-only"><?php if ($georankUrl): ?><a href="<?= pb_e($georankUrl) ?>">GeoRank dashboard</a> · <?php endif; ?></span>Unnati PostBase <?= pb_e(PB_VERSION) ?> · <a href="<?= PB_HOMEPAGE ?>" target="_blank" rel="noopener">Help &amp; support</a> · <a href="<?= PB_REPO_URL ?>" target="_blank" rel="noopener">GitHub</a></footer>
   </div>
 </div>
 <script>window.PB = <?= json_encode(['csrf' => pb_csrf_token(), 'endpoint' => pb_admin_url(), 'maxMb' => pb_config('max_upload_mb'), 'maxPx' => (int) pb_config('max_image_px'), 'keepMeta' => pb_setting('photo_metadata') !== 'strip','adminUrl' => pb_admin_url()]) ?>;</script>

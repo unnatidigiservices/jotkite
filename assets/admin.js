@@ -18,19 +18,27 @@
   });
 
   // On phones the menu and the editor toolbar scroll sideways, which people
-  // don't expect. A small animated › at the right edge says "more this way";
-  // it fades out once the end is reached, and tapping it scrolls along.
+  // don't expect. A small animated › at the right edge says "more this way".
+  // At the dead end it turns into ‹ on the left, to go back. Tapping either scrolls.
   $all('.pb-sidebar nav, .pb-toolbar').forEach((box) => {
-    const hint = document.createElement('span');
-    hint.className = 'pb-more';
-    hint.setAttribute('aria-hidden', 'true');
-    hint.textContent = '›';
-    box.appendChild(hint);
-    const update = () => box.classList.toggle('pb-can-scroll', box.scrollWidth - box.clientWidth - box.scrollLeft > 6);
+    const make = (cls, text, dir) => {
+      const h = document.createElement('span');
+      h.className = 'pb-more ' + cls;
+      h.setAttribute('aria-hidden', 'true');
+      h.textContent = text;
+      h.addEventListener('mousedown', (e) => e.preventDefault()); // keep the editor's selection
+      h.addEventListener('click', () => box.scrollBy({ left: dir * box.clientWidth * 0.6, behavior: 'smooth' }));
+      return h;
+    };
+    box.insertBefore(make('pb-more-left', '‹', -1), box.firstChild);
+    box.appendChild(make('pb-more-right', '›', 1));
+    const update = () => {
+      const more = box.scrollWidth - box.clientWidth - box.scrollLeft > 6;
+      box.classList.toggle('pb-can-scroll', more);
+      box.classList.toggle('pb-at-end', !more && box.scrollLeft > 6);
+    };
     box.addEventListener('scroll', update, { passive: true });
     window.addEventListener('resize', update);
-    hint.addEventListener('mousedown', (e) => e.preventDefault()); // keep the editor's selection
-    hint.addEventListener('click', () => box.scrollBy({ left: box.clientWidth * 0.6, behavior: 'smooth' }));
     update();
   });
 
@@ -517,12 +525,9 @@
         document.execCommand('formatBlock', false, current === cmd ? '<p>' : '<' + cmd + '>');
         break;
       }
-      case 'link': {
-        const url = window.prompt('Link address (https://… or /page.html)', 'https://');
-        if (!url || url === 'https://' || /^\s*(javascript|data|vbscript):/i.test(url)) return;
-        document.execCommand('createLink', false, url.trim());
-        break;
-      }
+      case 'link':
+        openLinkDialog();
+        return;
       case 'image':
         saveSelection();
         $('#pbImageFile').click();
@@ -551,6 +556,134 @@
       insertHtml('<figure class="pb-figure pb-w-full"><img src="' + esc(r.url) + '" alt="' + esc(alt) + '" width="' + Number(r.width) + '" height="' + Number(r.height) + '"></figure><p><br></p>');
     }).catch((err) => window.alert(err.message)).finally(() => editor.classList.remove('pb-uploading'));
   });
+
+  // ---- link dialog (WordPress-style) ----
+  // One box for both kinds of link: paste an address, or type to search this
+  // blog's published posts and pages. When the selection touches an existing
+  // link (even partly), the dialog edits it and offers Unlink.
+  const linkDlg = $('#pbLinkDlg');
+  let linkTargets = [];   // <a> elements the selection touches
+  let linkPick = null;    // chosen internal result {title, url}
+  let linkTimer = 0;
+  let linkIndex = -1;
+
+  function linksInSelection(range) {
+    const found = [];
+    const add = (n) => { const a = n && (n.nodeType === 1 ? n : n.parentElement); const l = a && a.closest('a'); if (l && editor.contains(l) && !found.includes(l)) found.push(l); };
+    add(range.startContainer);
+    add(range.endContainer);
+    $all('a', editor).forEach((a) => { if (!found.includes(a) && range.intersectsNode(a)) found.push(a); });
+    return found;
+  }
+  function openLinkDialog() {
+    if (!linkDlg) return;
+    saveSelection();
+    if (!savedRange) { editor.focus(); saveSelection(); }
+    linkTargets = savedRange ? linksInSelection(savedRange) : [];
+    linkPick = null;
+    const a = linkTargets[0];
+    const url = $('#pbLinkUrl');
+    url.value = a ? a.getAttribute('href') || '' : '';
+    $('#pbLinkNewTab').checked = !!(a && a.getAttribute('target') === '_blank');
+    $('#pbLinkUnlink').hidden = !linkTargets.length;
+    $('#pbLinkTitle').textContent = a ? 'Edit link' : 'Insert link';
+    linkDlg.hidden = false;
+    document.body.classList.add('pb-noscroll');
+    url.focus();
+    url.select();
+    searchLinks(a ? '' : url.value);
+  }
+  function closeLinkDialog() {
+    linkDlg.hidden = true;
+    document.body.classList.remove('pb-noscroll');
+    restoreSelection();
+  }
+  function looksLikeUrl(v) {
+    return /^(https?:\/\/|\/|#|mailto:|tel:|www\.)/i.test(v) || /^[\w-]+(\.[\w-]+)+(\/|$)/.test(v);
+  }
+  function searchLinks(q) {
+    clearTimeout(linkTimer);
+    const list = $('#pbLinkResults');
+    if (looksLikeUrl(q)) { list.innerHTML = ''; linkIndex = -1; return; }
+    linkTimer = setTimeout(() => {
+      fetch(PB.adminUrl + '?ajax=links&q=' + encodeURIComponent(q), { credentials: 'same-origin' })
+        .then((r) => r.json()).then((items) => {
+          linkIndex = -1;
+          list.innerHTML = items.length ? items.map((it, i) => '<li role="option" data-i="' + i + '" data-url="' + esc(it.url) + '" data-title="' + esc(it.title) + '">'
+            + '<strong>' + esc(it.title) + '</strong><span>' + (it.type === 'page' ? 'Page' : 'Post') + (it.date ? ' · ' + esc(it.date) : '') + '</span></li>').join('')
+            : '<li class="pb-link-none">' + (q ? 'No published post or page matches.' : 'No published posts yet.') + '</li>';
+        }).catch(() => { list.innerHTML = ''; });
+    }, q ? 180 : 0);
+  }
+  function pickResult(li) {
+    linkPick = { url: li.dataset.url, title: li.dataset.title };
+    $('#pbLinkUrl').value = li.dataset.url;
+    $all('#pbLinkResults li').forEach((x) => x.classList.toggle('on', x === li));
+  }
+  function applyLink() {
+    let href = $('#pbLinkUrl').value.trim();
+    if (!href) { unlinkSelection(); return; }
+    if (/^\s*(javascript|data|vbscript):/i.test(href)) { toast('That kind of link isn\'t allowed.', true); return; }
+    if (/^www\./i.test(href) || (/^[\w-]+(\.[\w-]+)+(\/|$)/.test(href) && !/^\//.test(href))) href = 'https://' + href;
+    const newTab = $('#pbLinkNewTab').checked;
+    const setAttrs = (a) => {
+      a.setAttribute('href', href);
+      if (newTab) { a.setAttribute('target', '_blank'); a.setAttribute('rel', 'noopener'); } else { a.removeAttribute('target'); a.removeAttribute('rel'); }
+    };
+    linkDlg.hidden = true;
+    document.body.classList.remove('pb-noscroll');
+    restoreSelection();
+    if (linkTargets.length) {
+      linkTargets.forEach(setAttrs); // edit the existing link(s)
+    } else if (!savedRange || savedRange.collapsed) {
+      // Nothing selected: insert the link text itself (the post title, or the address).
+      const text = linkPick && linkPick.url === href ? linkPick.title : href.replace(/^https?:\/\//, '');
+      document.execCommand('insertHTML', false, '<a href="' + esc(href) + '"' + (newTab ? ' target="_blank" rel="noopener"' : '') + '>' + esc(text) + '</a>&nbsp;');
+    } else {
+      const marker = 'pb-link-' + Date.now();
+      document.execCommand('createLink', false, marker);
+      $all('a[href="' + marker + '"]', editor).forEach(setAttrs);
+    }
+    dirty = true;
+  }
+  function unlinkSelection() {
+    linkDlg.hidden = true;
+    document.body.classList.remove('pb-noscroll');
+    linkTargets.forEach((a) => { // unwrap: keep the text, drop the link
+      while (a.firstChild) a.parentNode.insertBefore(a.firstChild, a);
+      a.remove();
+    });
+    restoreSelection();
+    dirty = true;
+  }
+  if (linkDlg) {
+    linkDlg.addEventListener('input', (e) => e.stopPropagation()); // searching isn't editing the post
+    $('#pbLinkUrl').addEventListener('input', function () { linkPick = null; searchLinks(this.value.trim()); });
+    $('#pbLinkUrl').addEventListener('keydown', (e) => {
+      const items = $all('#pbLinkResults li[data-url]');
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (!items.length) return;
+        e.preventDefault();
+        linkIndex = (linkIndex + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+        pickResult(items[linkIndex]);
+        items[linkIndex].scrollIntoView({ block: 'nearest' });
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        // Typed a search word and pressed Enter: take the top match.
+        if (!looksLikeUrl(e.target.value.trim()) && !linkPick && items.length) pickResult(items[0]);
+        applyLink();
+      }
+    });
+    $('#pbLinkResults').addEventListener('click', (e) => { const li = e.target.closest('li[data-url]'); if (li) pickResult(li); });
+    $('#pbLinkResults').addEventListener('dblclick', (e) => { const li = e.target.closest('li[data-url]'); if (li) { pickResult(li); applyLink(); } });
+    $('#pbLinkApply').addEventListener('click', applyLink);
+    $('#pbLinkUnlink').addEventListener('click', unlinkSelection);
+    $all('[data-link-close]').forEach((b) => b.addEventListener('click', closeLinkDialog));
+    linkDlg.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); closeLinkDialog(); } });
+    editor.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openLinkDialog(); }
+    });
+  }
 
   function videoEmbedUrl(u) {
     let m = u.match(/(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/|v\/)|youtu\.be\/)([\w-]{11})/);
