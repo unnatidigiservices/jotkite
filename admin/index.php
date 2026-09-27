@@ -98,6 +98,7 @@ function pb_image_field($name, $value, $label, $hint = '', $editable = true) {
        . '<input type="hidden" name="' . pb_e($name) . '" value="' . pb_e($value) . '" data-img-value>';
     if ($editable) {
         $h .= '<div class="pb-row"><button type="button" class="pb-btn pb-btn-sm" data-img-upload>' . ($value !== '' ? 'Replace' : 'Upload') . '</button>'
+            . '<button type="button" class="pb-btn pb-btn-sm" data-img-library>Media library</button>'
             . '<button type="button" class="pb-btn pb-btn-sm" data-img-clear' . ($value === '' ? ' hidden' : '') . '>Remove</button></div>'
             . '<input type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden data-img-file>';
     }
@@ -273,6 +274,18 @@ if (($_GET['ajax'] ?? '') === 'links') {
         $out[] = ['title' => $r['title'], 'url' => pb_url('post', $r['slug']), 'type' => $r['type'], 'date' => $r['type'] === 'post' ? pb_format_date($r['published_at']) : ''];
     }
     pb_json($out);
+}
+// Media library for the image picker (editor, featured image, design images): newest first, 40 per page.
+if (($_GET['ajax'] ?? '') === 'media') {
+    if (!pb_can($user, 'media.upload')) pb_json([], 403);
+    $all = pb_media_list(trim((string) ($_GET['q'] ?? '')));
+    $pg = max(1, (int) ($_GET['pg'] ?? 1));
+    $items = [];
+    foreach (array_slice($all, ($pg - 1) * 40, 40) as $m) {
+        $size = @getimagesize(PB_UPLOAD_DIR . '/' . $m['rel']);
+        $items[] = ['url' => $m['url'], 'name' => $m['name'], 'width' => $size ? (int) $size[0] : 0, 'height' => $size ? (int) $size[1] : 0];
+    }
+    pb_json(['items' => $items, 'more' => count($all) > $pg * 40]);
 }
 
 // ============================================================================
@@ -539,6 +552,11 @@ if ($isPost) {
     if ($do === 'account_save') {
         $name = trim((string) ($_POST['name'] ?? ''));
         if ($name !== '') pb_q('UPDATE users SET name = ?, bio = ? WHERE id = ?', [$name, trim((string) ($_POST['bio'] ?? '')), $user['id']]);
+        if (array_key_exists('default_category_id', $_POST)) {
+            $dc = (int) $_POST['default_category_id'];
+            if ($dc && !pb_val('SELECT id FROM categories WHERE id = ?', [$dc])) $dc = 0;
+            pb_q('UPDATE users SET default_category_id = ? WHERE id = ?', [$dc ?: null, $user['id']]);
+        }
         $new = (string) ($_POST['new_password'] ?? '');
         if ($new !== '' && $user['source'] === 'local') {
             if (!password_verify((string) ($_POST['current_password'] ?? ''), (string) $user['password_hash'])) {
@@ -583,7 +601,7 @@ if ($view === 'edit') {
     $canEdit = $post ? pb_can($user, 'post.edit', $post) : true;
     $cats = pb_all('SELECT id, name FROM categories ORDER BY sort, name');
     $p = $post ?: ['id' => 0, 'title' => '', 'slug' => '', 'body' => '', 'excerpt' => '', 'cover_image' => '', 'cover_alt' => '',
-                   'category_id' => null, 'seo_title' => '', 'seo_description' => '', 'status' => 'draft', 'published_at' => null,
+                   'category_id' => $user['default_category_id'] ?? null, 'seo_title' => '', 'seo_description' => '', 'status' => 'draft', 'published_at' => null,
                    'author_id' => $user['id'], 'author_name' => $user['name'], 'first_published_at' => null,
                    'type' => $isEditor && ($_GET['type'] ?? '') === 'page' ? 'page' : 'post', 'pinned' => 0];
     $isPage = $p['type'] === 'page';
@@ -1218,6 +1236,12 @@ if ($view === 'edit') {
     <?= $user['source'] === 'georank' ? '<span class="pb-small pb-muted">Signed in through GeoRank</span>' : '<span class="pb-small pb-muted">' . pb_e($user['email']) . '</span>' ?></p>
   <label>Display name (shown on your posts)<input name="name" required value="<?= pb_e($user['name']) ?>"></label>
   <label>Short bio<textarea name="bio" rows="3"><?= pb_e($user['bio']) ?></textarea></label>
+  <?php $myCats = pb_all('SELECT id, name FROM categories ORDER BY sort, name'); if ($myCats): ?>
+  <label>Default category for my new posts<select name="default_category_id">
+    <option value="0">— None —</option>
+    <?php foreach ($myCats as $c): ?><option value="<?= (int) $c['id'] ?>"<?= (int) ($user['default_category_id'] ?? 0) === (int) $c['id'] ? ' selected' : '' ?>><?= pb_e($c['name']) ?></option><?php endforeach; ?>
+  </select><span class="pb-small pb-muted">Preselected when you start a post; you can still change it on each post.</span></label>
+  <?php endif; ?>
   <?php if ($user['source'] === 'local'): ?>
     <h3 class="pb-h3">Change password</h3>
     <label>Current password<input type="password" name="current_password" autocomplete="current-password"></label>

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.20.0 — 2026-09-27
+
+- **The PostBase gradient.** The admin (desktop and phone) and the sign-in page now sit on the PostBase backdrop: soft periwinkle and orchid glows on lavender, with a faint dot grid. It has a matching dark-mode version.
+- **M1 theme 1.1.0.** The outside background on wide screens is the same gradient by default. A new *Outside background* option offers *PostBase gradient* or *Solid colour*. Sites that had already picked their own solid colour keep it.
+- **Media library in the editor.** The Image button opens a picker: choose any uploaded image (thumbnails, search, *Load more*) or **⬆ Upload new**. Featured image, social image and favicon fields get a **Media library** button too.
+- **A default category for each writer.** My account → *Default category for my new posts* is preselected on every new post and can still be changed per post. Deleting the category clears the default.
+- Database schema v4 (`users.default_category_id`), applied automatically.
+
 ## 0.19.0 — 2026-09-26
 
 - **Link dialog (WordPress-style)** replaces the old address prompt. Open it with 🔗 or Ctrl+K.

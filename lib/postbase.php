@@ -10,10 +10,10 @@
  */
 if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 
-define('PB_VERSION', '0.19.0');
+define('PB_VERSION', '0.20.0');
 define('PB_HOMEPAGE', 'https://postbase.top');                             // project info, docs and support
 define('PB_REPO_URL', 'https://github.com/unnatidigiservices/postbase');    // source code and issues
-define('PB_SCHEMA_VERSION', 3);
+define('PB_SCHEMA_VERSION', 4);
 define('PB_DATA_DIR', PB_ROOT . '/data');
 define('PB_UPLOAD_DIR', PB_ROOT . '/uploads');
 // The site's web root: PB_ROOT itself when PostBase runs at a domain root
@@ -309,7 +309,11 @@ function pb_migrate(PDO $pdo) {
             CREATE INDEX idx_devices_user ON devices(user_id);
         ");
     }
-    // Future schema changes go here as: if ($v < 4) { ... }
+    if ($v < 4) {
+        // 0.20: each writer's default category, preselected on their new posts.
+        $pdo->exec('ALTER TABLE users ADD COLUMN default_category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL');
+    }
+    // Future schema changes go here as: if ($v < 5) { ... }
     $pdo->exec('PRAGMA user_version = ' . (int) PB_SCHEMA_VERSION);
     $pdo->commit();
 }

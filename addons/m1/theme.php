@@ -20,6 +20,11 @@ return function (array $page) {
     $containerBg = $color('container_bg', '#ffffff');
     $footerBg = $color('footer_bg', '#160845');
     $pageBg = $color('page_bg', '#eef1f7');
+    // Outside the column: the PostBase gradient by default. A site that picked its own
+    // solid colour before this option existed (M1 1.0.x) keeps that colour.
+    $style = pb_setting('addon:m1:page_style');
+    if ($style === null) $style = strtolower($pageBg) !== '#eef1f7' ? 'color' : 'gradient';
+    $bodyClass = 'pb-page pb-m1' . ($style === 'color' ? '' : ' m1-gradient');
     $headerFg = pb_text_on($headerBg);
     // Links/buttons in the content use the header colour when it is dark enough to read on white.
     $accent = $headerFg === '#ffffff' ? $headerBg : '#3a00c2';
@@ -50,7 +55,7 @@ return function (array $page) {
 <head>
 <?= $page['head'] ?>
 </head>
-<body class="pb-page pb-m1" style="<?= pb_e($vars) ?>">
+<body class="<?= $bodyClass ?>" style="<?= pb_e($vars) ?>">
 <a class="m1-skip" href="#main">Skip to content</a>
 <div class="m1-shell">
   <header class="m1-header">

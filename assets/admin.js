@@ -177,7 +177,92 @@
       up.textContent = 'Upload';
       bubble(val);
     });
+    const lib = $('[data-img-library]', f);
+    if (lib) lib.addEventListener('click', () => openMediaPicker((item) => {
+      val.value = item.url;
+      prev.innerHTML = '<img src="' + esc(item.url) + '" alt="">';
+      clr.hidden = false;
+      up.textContent = 'Replace';
+      bubble(val);
+    }));
   });
+
+  // ---- media library picker: choose an uploaded image, or upload a new one ----
+  // Used by the editor's Image button and by every image field. onPick gets {url, width, height}.
+  let picker = null;
+  let pickerDone = null;
+  let pickerPage = 1;
+  let pickerTimer = 0;
+  function buildPicker() {
+    picker = document.createElement('div');
+    picker.className = 'pb-picker';
+    picker.hidden = true;
+    picker.setAttribute('role', 'dialog');
+    picker.setAttribute('aria-modal', 'true');
+    picker.setAttribute('aria-label', 'Choose an image');
+    picker.innerHTML = '<div class="pb-picker-box">'
+      + '<div class="pb-picker-head"><h3 class="pb-h3">Choose an image</h3><button type="button" class="pb-lightbox-close" data-pick="close" aria-label="Close">✕</button></div>'
+      + '<div class="pb-picker-bar"><button type="button" class="pb-btn pb-btn-primary" data-pick="upload">⬆ Upload new</button>'
+      + '<input type="search" placeholder="Search your images…" aria-label="Search images" data-pick="q"></div>'
+      + '<input type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden data-pick="file">'
+      + '<div class="pb-picker-grid" data-pick="grid"></div>'
+      + '<p class="pb-picker-foot"><button type="button" class="pb-btn pb-btn-sm" data-pick="more" hidden>Load more</button></p></div>';
+    document.body.appendChild(picker);
+    const q = $('[data-pick="q"]', picker);
+    const file = $('[data-pick="file"]', picker);
+    const up = $('[data-pick="upload"]', picker);
+    q.addEventListener('input', () => { clearTimeout(pickerTimer); pickerTimer = setTimeout(() => loadPicker(true), 220); });
+    $('[data-pick="more"]', picker).addEventListener('click', () => loadPicker(false));
+    $('[data-pick="close"]', picker).addEventListener('click', closePicker);
+    picker.addEventListener('click', (e) => {
+      if (e.target === picker) { closePicker(); return; }
+      const tile = e.target.closest('[data-url]');
+      if (tile) choosePicked({ url: tile.dataset.url, width: Number(tile.dataset.w), height: Number(tile.dataset.h) });
+    });
+    picker.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); closePicker(); } });
+    up.addEventListener('click', () => file.click());
+    file.addEventListener('change', () => {
+      const chosen = file.files[0];
+      file.value = '';
+      if (!chosen) return;
+      up.disabled = true;
+      up.textContent = 'Uploading…';
+      upload(chosen).then((r) => choosePicked(r)).catch((err) => window.alert(err.message))
+        .finally(() => { up.disabled = false; up.textContent = '⬆ Upload new'; });
+    });
+  }
+  function loadPicker(reset) {
+    const grid = $('[data-pick="grid"]', picker);
+    const more = $('[data-pick="more"]', picker);
+    if (reset) { pickerPage = 1; grid.innerHTML = '<p class="pb-muted pb-small">Loading…</p>'; } else pickerPage++;
+    const q = $('[data-pick="q"]', picker).value.trim();
+    fetch(PB.adminUrl + '?ajax=media&pg=' + pickerPage + '&q=' + encodeURIComponent(q), { credentials: 'same-origin' })
+      .then((r) => r.json()).then((j) => {
+        const html = (j.items || []).map((it) => '<button type="button" class="pb-picker-tile" data-url="' + esc(it.url) + '" data-w="' + Number(it.width) + '" data-h="' + Number(it.height) + '" title="' + esc(it.name) + '">'
+          + '<img src="' + esc(it.url) + '" alt="" loading="lazy" decoding="async"><span>' + esc(it.name) + '</span></button>').join('');
+        if (reset) grid.innerHTML = html || '<p class="pb-muted pb-small">' + (q ? 'No images match.' : 'No images yet. Upload one.') + '</p>';
+        else grid.insertAdjacentHTML('beforeend', html);
+        more.hidden = !j.more;
+      }).catch(() => { if (reset) grid.innerHTML = '<p class="pb-muted pb-small">Could not load the library.</p>'; });
+  }
+  function openMediaPicker(onPick) {
+    if (!picker) buildPicker();
+    pickerDone = onPick;
+    picker.hidden = false;
+    document.body.classList.add('pb-noscroll');
+    $('[data-pick="q"]', picker).value = '';
+    loadPicker(true);
+    $('[data-pick="upload"]', picker).focus();
+  }
+  function closePicker() {
+    picker.hidden = true;
+    document.body.classList.remove('pb-noscroll');
+  }
+  function choosePicked(item) {
+    const done = pickerDone;
+    closePicker();
+    if (done) done(item);
+  }
 
   // ---- colour fields: picker <-> hex text, empty = inherit ----
   $all('[data-colorfield]').forEach((f) => {
@@ -530,7 +615,11 @@
         return;
       case 'image':
         saveSelection();
-        $('#pbImageFile').click();
+        openMediaPicker((img) => {
+          const alt = window.prompt('Describe this image (alt text, helps accessibility and Google):', '') || '';
+          insertHtml('<figure class="pb-figure pb-w-full"><img src="' + esc(img.url) + '" alt="' + esc(alt) + '"'
+            + (img.width ? ' width="' + Number(img.width) + '" height="' + Number(img.height) + '"' : '') + '></figure><p><br></p>');
+        });
         return;
       case 'video':
         saveSelection();
