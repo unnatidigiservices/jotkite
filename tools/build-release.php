@@ -25,7 +25,7 @@ $lib = file_get_contents($root . '/lib/postbase.php');
 if (!preg_match("/define\('PB_VERSION',\s*'([^']+)'\)/", $lib, $m)) { fwrite(STDERR, "PB_VERSION not found\n"); exit(1); }
 $version = $m[1];
 
-// What ships to a site: code, assets, protective .htaccess files and the licence texts.
+// What ships to a site: code, assets and the licence texts (the .htaccess files are created by PostBase itself).
 $exclude = '#^(dist|tools|docs|\.git[^/]*|config\.php|\.gitignore|data/(?!\.htaccess$).*|uploads/(?!\.htaccess$).*)(/|$)#';
 $files = [];
 $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
@@ -33,6 +33,10 @@ foreach ($it as $f) {
     if ($f->isDir()) continue;
     $rel = str_replace('\\', '/', substr($f->getPathname(), strlen($root) + 1));
     if (preg_match($exclude, $rel)) continue;
+    // No dot-files (.htaccess): hosts and CDNs answer 403 for any URL with a
+    // file named .ht*, so they could never be downloaded. PostBase writes its
+    // .htaccess files itself on the first request (pb_ensure_protection()).
+    if (preg_match('#(^|/)\.#', $rel)) continue;
     $files[$rel] = $f->getPathname();
 }
 ksort($files);

@@ -162,12 +162,40 @@ function pb_csrf_check() {
 // dropped by FTP clients, zip tools and GitHub's web uploader. PostBase never
 // relies on them having survived: it recreates any that are missing — the data
 // folder (SQLite database), uploads (never executable) and lib.
+// PostBase's own .htaccess, byte for byte the same as the one in the repository
+// (a test checks they match).
+function pb_root_htaccess() {
+    return "# Unnati PostBase\n"
+         . "Options -Indexes\n"
+         . "DirectoryIndex index.php\n"
+         . "\n"
+         . "<IfModule mod_rewrite.c>\n"
+         . "  RewriteEngine On\n"
+         . "  # If clean URLs give a 404 or 500 on your host, uncomment and set this to\n"
+         . "  # the folder PostBase lives in (with slashes), e.g. /blog/\n"
+         . "  # RewriteBase /blog/\n"
+         . "\n"
+         . "  # Never serve internals or docs directly.\n"
+         . "  RewriteRule ^(data|lib|tools|docs|dist)(/|$) - [F,L]\n"
+         . "  # Addon code and manifests are never served directly (their CSS/JS/images are).\n"
+         . "  RewriteRule ^addons/.+\\.(php|json|md)$ - [F,L]\n"
+         . "  RewriteRule ^(config(\\.sample)?\\.php|[^/]+\\.md|\\.git.*)$ - [F,L]\n"
+         . "\n"
+         . "  # Everything that isn't a real file or folder goes to the front controller.\n"
+         . "  RewriteCond %{REQUEST_FILENAME} !-f\n"
+         . "  RewriteCond %{REQUEST_FILENAME} !-d\n"
+         . "  RewriteRule ^(.*)$ index.php?route=$1 [QSA,L]\n"
+         . "</IfModule>\n";
+}
 function pb_ensure_protection() {
     static $done = false;
     if ($done) return;
     $done = true;
     $deny = "<IfModule mod_authz_core.c>\n  Require all denied\n</IfModule>\n<IfModule !mod_authz_core.c>\n  Order allow,deny\n  Deny from all\n</IfModule>\n";
     $files = [
+        // The main one (clean URLs, blocked internals). Releases don't ship it at all:
+        // hosts and CDNs refuse to serve any file named .ht*, even as a download.
+        PB_ROOT . '/.htaccess' => pb_root_htaccess(),
         dirname(pb_config('db_path')) . '/.htaccess' => "# The SQLite database lives here. Never serve it.\n" . $deny,
         PB_ROOT . '/lib/.htaccess' => $deny,
         PB_UPLOAD_DIR . '/.htaccess' => "# Uploaded images only. Nothing in here may ever run as code.\n"

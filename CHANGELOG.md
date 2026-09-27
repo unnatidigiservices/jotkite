@@ -7,6 +7,10 @@
 - **Media library in the editor.** The Image button opens a picker: choose any uploaded image (thumbnails, search, *Load more*) or **⬆ Upload new**. Featured image, social image and favicon fields get a **Media library** button too.
 - **A default category for each writer.** My account → *Default category for my new posts* is preselected on every new post and can still be changed per post. Deleting the category clears the default.
 - Database schema v4 (`users.default_category_id`), applied automatically.
+- **Fixed: installing from GeoRank failed with "HTTP 403 for .htaccess.txt".** Hosts and CDNs, including Hostinger's, refuse to serve any file named `.ht*`, even as a `.txt` download.
+  - Releases no longer contain dot-files.
+  - PostBase now also recreates its main `.htaccess` (clean URLs, blocked internals) on the first request, as it already did for `data/`, `lib/` and `uploads/`.
+  - An existing `.htaccess` is never overwritten.
 
 ## 0.19.0 — 2026-09-26
 
