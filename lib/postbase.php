@@ -10,7 +10,7 @@
  */
 if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 
-define('PB_VERSION', '0.20.0');
+define('PB_VERSION', '0.20.1');
 define('PB_HOMEPAGE', 'https://postbase.top');                             // project info, docs and support
 define('PB_REPO_URL', 'https://github.com/unnatidigiservices/postbase');    // source code and issues
 define('PB_SCHEMA_VERSION', 4);

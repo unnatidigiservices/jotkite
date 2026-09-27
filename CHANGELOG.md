@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.20.1 — 2026-09-27
+
+- **Fixed: on some GeoRank sites the blog redirected to the homepage.** GeoRank's include files send direct visitors to `/` unless `GEORANK_INCLUDE` is defined. Newer sites have that guard in `meta-global.html` too, and PostBase defined the constant only after including that file, so every blog page redirected home. The admin, RSS and sitemap were not affected. The constant is now defined before the first include.
+
 ## 0.20.0 — 2026-09-27
 
 - **The PostBase gradient.** The admin (desktop and phone) and the sign-in page now sit on the PostBase backdrop: soft periwinkle and orchid glows on lavender, with a faint dot grid. It has a matching dark-mode version.

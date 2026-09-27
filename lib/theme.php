@@ -131,13 +131,17 @@ function pb_render_page(array $meta, $content) {
 
     header('Content-Type: text/html; charset=utf-8');
     if (pb_layout_mode() === 'georank') {
+        // GeoRank's include files redirect to the homepage when GEORANK_INCLUDE isn't
+        // defined (so nobody can open them directly). header.html and footer.html
+        // always had that guard; newer sites put it in meta-global.html too, so it
+        // must be defined before the very first include.
+        if (!defined('GEORANK_INCLUDE')) define('GEORANK_INCLUDE', true);
         $assets = pb_georank_page_assets();
         echo "<!DOCTYPE html>\n<html lang=\"" . pb_e($lang) . "\">\n<head>\n" . $head;
         if (is_file(PB_SITE_DIR . '/meta-global.html')) include PB_SITE_DIR . '/meta-global.html';
         echo "\n" . $assets['head'];
         echo '<link rel="stylesheet" href="' . pb_e($blogCss) . '">' . "\n" . $tail;
         echo "</head>\n<body class=\"pb-page pb-georank\">\n";
-        if (!defined('GEORANK_INCLUDE')) define('GEORANK_INCLUDE', true);
         include PB_SITE_DIR . '/header.html';
         $subnav = pb_setting('nav_show_georank') === '1' ? '<div class="pb-subnav-bar"><div class="pb-wrap">' . pb_nav_html('pb-subnav') . "</div></div>\n" : '';
         echo "\n<main id=\"main\" class=\"pb-main\">\n" . $subnav . $content . "\n</main>\n";
