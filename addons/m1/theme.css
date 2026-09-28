@@ -1,5 +1,5 @@
-/*! PostBase M1 ("Mobile One") theme · https://postbase.top
- * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-PostBase-Commercial
+/*! JotKite M1 ("Mobile One") theme · https://jotkite.com
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-JotKite-Commercial
  * 720px column · 640px content · header of three 100px blocks (logo · action · menu). */
 
 .pb-m1 {
@@ -13,7 +13,7 @@
   font: 17px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-text-size-adjust: 100%;
 }
-/* PostBase gradient outside the column (the default): periwinkle and orchid glows on lavender */
+/* JotKite gradient outside the column (the default): periwinkle and orchid glows on lavender */
 .pb-m1.m1-gradient {
   background:
     radial-gradient(rgba(58, 0, 194, .055) 1px, transparent 1.3px) 0 0 / 22px 22px,

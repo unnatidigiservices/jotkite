@@ -1,11 +1,11 @@
-# Unnati PostBase
+# JotKite
 Options -Indexes
 DirectoryIndex index.php
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
   # If clean URLs give a 404 or 500 on your host, uncomment and set this to
-  # the folder PostBase lives in (with slashes), e.g. /blog/
+  # the folder JotKite lives in (with slashes), e.g. /blog/
   # RewriteBase /blog/
 
   # Never serve internals or docs directly.

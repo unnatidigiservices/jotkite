@@ -1,7 +1,7 @@
 <?php
 /**
- * Unnati PostBase — media library (the images in uploads/) · https://postbase.top
- * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-PostBase-Commercial
+ * JotKite — media library (the images in uploads/) · https://jotkite.com
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-JotKite-Commercial
  */
 if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 
@@ -67,7 +67,7 @@ function pb_media_delete(array $rels) {
 // ----------------------------------------------------------------------------
 // PHOTO METADATA (EXIF) — pure PHP, so it works without the exif extension.
 // Phone photos carry where (GPS), when and on what camera they were taken.
-// PostBase keeps that by default: for local businesses a real, geotagged photo
+// JotKite keeps that by default: for local businesses a real, geotagged photo
 // is a signal of a real place. Settings → General can remove it instead.
 // ----------------------------------------------------------------------------
 

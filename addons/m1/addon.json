@@ -1,10 +1,10 @@
 {
-  "name": "PostBase M1",
+  "name": "JotKite M1",
   "type": "theme",
   "version": "1.1.0",
   "description": "Mobile One: one layout for every device. A 720px column, a 640px reading width, and a thumb-friendly header of three 100px blocks: logo, action and menu.",
   "author": "Unnati Digi Services",
-  "homepage": "https://postbase.top",
+  "homepage": "https://jotkite.com",
   "requires": "0.13.0",
   "settings": [
     { "key": "logo", "type": "image", "label": "Logo", "help": "Square works best. Shown in a 100×100 block.", "default": "" },
@@ -15,7 +15,7 @@
     { "key": "header_bg", "type": "color", "label": "Header background", "default": "#3a00c2" },
     { "key": "container_bg", "type": "color", "label": "Container background", "default": "#ffffff" },
     { "key": "footer_bg", "type": "color", "label": "Footer background", "default": "#160845" },
-    { "key": "page_style", "type": "select", "label": "Outside background (seen on wide screens)", "options": { "gradient": "PostBase gradient", "color": "Solid colour (below)" }, "default": "gradient" },
+    { "key": "page_style", "type": "select", "label": "Outside background (seen on wide screens)", "options": { "gradient": "JotKite gradient", "color": "Solid colour (below)" }, "default": "gradient" },
     { "key": "page_bg", "type": "color", "label": "Outside solid colour", "help": "Used when the outside background is set to Solid colour.", "default": "#eef1f7" },
     { "key": "footer_text", "type": "text", "label": "Footer text", "help": "Empty = © year and the blog title.", "default": "" }
   ]

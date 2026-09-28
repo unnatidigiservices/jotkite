@@ -1,8 +1,8 @@
 <?php
 /**
- * Unnati PostBase — addons (themes & plugins) · https://postbase.top
+ * JotKite — addons (themes & plugins) · https://jotkite.com
  *
- * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-PostBase-Commercial
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-JotKite-Commercial
  *
  * An addon is a folder in addons/<slug>/ with an addon.json manifest:
  *   type "theme"  -> theme.php returns a function(array $page) that prints the
@@ -52,7 +52,7 @@ function pb_capture_action($hook, ...$args) {
 function pb_addon_error($e, $where) {
     $msg = $where . ': ' . $e->getMessage() . ' (' . basename($e->getFile()) . ':' . $e->getLine() . ')';
     $GLOBALS['pb_addon_errors'][] = $msg;
-    error_log('[PostBase addon] ' . $msg);
+    error_log('[JotKite addon] ' . $msg);
 }
 
 // --------------------------------------------------------------- discovery
@@ -79,7 +79,7 @@ function pb_addons() {
         elseif (!in_array($a['type'] ?? '', ['theme', 'plugin'], true)) $a['error'] = 'addon.json must set "type" to "theme" or "plugin".';
         elseif ($a['type'] === 'theme' && !is_file($dir . '/theme.php')) $a['error'] = 'A theme needs a theme.php file.';
         elseif ($a['type'] === 'plugin' && !is_file($dir . '/addon.php')) $a['error'] = 'A plugin needs an addon.php file.';
-        elseif (!empty($a['requires']) && version_compare(PB_VERSION, (string) $a['requires'], '<')) $a['error'] = 'Needs PostBase ' . $a['requires'] . ' or newer.';
+        elseif (!empty($a['requires']) && version_compare(PB_VERSION, (string) $a['requires'], '<')) $a['error'] = 'Needs JotKite ' . $a['requires'] . ' or newer.';
         $all[$slug] = $a;
     }
     ksort($all);

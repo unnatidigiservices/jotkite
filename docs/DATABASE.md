@@ -1,6 +1,6 @@
 # Storage study: TXT vs JSON vs SQLite
 
-PostBase needs to store posts, users with roles, a review workflow (who submitted, who approved, change-request notes), categories and settings. It has to run on ordinary shared hosting (cPanel/Hostinger-style) next to GeoRank, which itself stores everything in flat files (`.html` pages plus `georank-config.json`).
+JotKite needs to store posts, users with roles, a review workflow (who submitted, who approved, change-request notes), categories and settings. It has to run on ordinary shared hosting (cPanel/Hostinger-style) next to GeoRank, which itself stores everything in flat files (`.html` pages plus `georank-config.json`).
 
 ## What the blog actually needs from storage
 
@@ -41,19 +41,21 @@ PostBase needs to store posts, users with roles, a review workflow (who submitte
 
 ## Option 3: SQLite (single file `data/postbase.sqlite`) ✅ chosen
 
+> The file keeps its original name from before JotKite was renamed (it was *PostBase* until 0.21.0). Renaming it would force a risky file move on every existing site, so it stays `postbase.sqlite`.
+
 **Pros:**
 - **Still just one file.** It keeps GeoRank's zero-setup spirit: no MySQL database or credentials, and a backup is copying one file plus `uploads/`.
 - **Real transactions and locking.** Concurrent editors are handled by the engine (`busy_timeout`, WAL mode). An approval and its audit event commit together or not at all.
 - **Real queries.** Pagination, category pages, review queues, counts per status and search are one indexed `SELECT` each.
 - **Relations with integrity.** Foreign keys (deleting a category un-categorises its posts instead of breaking them), `CHECK` constraints on roles and statuses.
 - **Scales well past any small-business blog.** Tens of thousands of posts are fine for read-heavy sites.
-- **Available almost everywhere.** `pdo_sqlite` ships enabled by default in PHP and on virtually all shared hosts. PostBase shows a clear message if it's missing.
+- **Available almost everywhere.** `pdo_sqlite` ships enabled by default in PHP and on virtually all shared hosts. JotKite shows a clear message if it's missing.
 - **Easy upgrade path.** The code uses only PDO, so a future MySQL driver is a small change if a client outgrows SQLite.
 
 **Cons and mitigations:**
 - *Binary file, not diffable in git.* Content isn't meant to live in git. An export-to-JSON/Markdown feature is on the roadmap for portability.
 - *Must not be web-downloadable.* `data/.htaccess` denies all access, the root `.htaccess` blocks `/data/`, and `config.php` can move the file outside the web root entirely.
-- *Some network filesystems dislike WAL mode.* PostBase tries WAL and silently falls back to the default journal.
+- *Some network filesystems dislike WAL mode.* JotKite tries WAL and silently falls back to the default journal.
 - *Very high write concurrency (hundreds of writers per second).* That doesn't apply to a blog.
 
 ## Schema (v1)

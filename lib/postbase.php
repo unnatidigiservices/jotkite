@@ -1,8 +1,8 @@
 <?php
 /**
- * Unnati PostBase — core library (config, database, auth, roles, posts).
+ * JotKite — core library (config, database, auth, roles, posts).
  *
- * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-PostBase-Commercial
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-JotKite-Commercial
  * Copyright (c) 2026 Unnati Digi Services. See LICENSE and COMMERCIAL-LICENSE.md.
  *
  * Every entry point (index.php, admin/index.php) defines PB_ROOT and
@@ -10,14 +10,14 @@
  */
 if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 
-define('PB_VERSION', '0.20.1');
-define('PB_HOMEPAGE', 'https://postbase.top');                             // project info, docs and support
-define('PB_REPO_URL', 'https://github.com/unnatidigiservices/postbase');    // source code and issues
+define('PB_VERSION', '0.21.0');
+define('PB_HOMEPAGE', 'https://jotkite.com');                             // project info, docs and support
+define('PB_REPO_URL', 'https://github.com/unnatidigiservices/jotkite');    // source code and issues
 define('PB_SCHEMA_VERSION', 4);
 define('PB_DATA_DIR', PB_ROOT . '/data');
 define('PB_UPLOAD_DIR', PB_ROOT . '/uploads');
-// The site's web root: PB_ROOT itself when PostBase runs at a domain root
-// (e.g. postbase.top), its parent for /blog/, two levels up for /news/blog/.
+// The site's web root: PB_ROOT itself when JotKite runs at a domain root
+// (e.g. jotkite.com), its parent for /blog/, two levels up for /news/blog/.
 define('PB_SITE_DIR', PB_BASE_PATH === '' ? PB_ROOT : dirname(PB_ROOT, substr_count(trim(PB_BASE_PATH, '/'), '/') + 1));
 define('PB_SESSION_LIFETIME', 12 * 60 * 60); // matches GeoRank so a shared session is never cut short
 define('PB_ROLES', ['contributor', 'editor', 'admin']);
@@ -58,9 +58,9 @@ function pb_now() {
 }
 function pb_fatal($msg) {
     http_response_code(500);
-    echo '<!DOCTYPE html><meta charset="utf-8"><title>PostBase error</title>'
+    echo '<!DOCTYPE html><meta charset="utf-8"><title>JotKite error</title>'
        . '<div style="font:16px/1.5 system-ui,sans-serif;max-width:640px;margin:60px auto;padding:0 20px">'
-       . '<h1 style="font-size:22px">PostBase can\'t start</h1><p>' . pb_e($msg) . '</p></div>';
+       . '<h1 style="font-size:22px">JotKite can\'t start</h1><p>' . pb_e($msg) . '</p></div>';
     exit;
 }
 function pb_is_https() {
@@ -130,7 +130,7 @@ function pb_local_to_utc($local) {
 
 // ----------------------------------------------------------------------------
 // SESSION — shares GeoRank's PHP session (same cookie, same lifetime) so a
-// GeoRank admin/editor lands in PostBase already signed in.
+// GeoRank admin/editor lands in JotKite already signed in.
 // ----------------------------------------------------------------------------
 function pb_session_start() {
     if (session_status() === PHP_SESSION_ACTIVE) return;
@@ -159,20 +159,20 @@ function pb_csrf_check() {
 // DATABASE — SQLite via PDO. See docs/DATABASE.md for why.
 // ----------------------------------------------------------------------------
 // Protective .htaccess files are dot-files, and dot-files are often silently
-// dropped by FTP clients, zip tools and GitHub's web uploader. PostBase never
+// dropped by FTP clients, zip tools and GitHub's web uploader. JotKite never
 // relies on them having survived: it recreates any that are missing — the data
 // folder (SQLite database), uploads (never executable) and lib.
-// PostBase's own .htaccess, byte for byte the same as the one in the repository
+// JotKite's own .htaccess, byte for byte the same as the one in the repository
 // (a test checks they match).
 function pb_root_htaccess() {
-    return "# Unnati PostBase\n"
+    return "# JotKite\n"
          . "Options -Indexes\n"
          . "DirectoryIndex index.php\n"
          . "\n"
          . "<IfModule mod_rewrite.c>\n"
          . "  RewriteEngine On\n"
          . "  # If clean URLs give a 404 or 500 on your host, uncomment and set this to\n"
-         . "  # the folder PostBase lives in (with slashes), e.g. /blog/\n"
+         . "  # the folder JotKite lives in (with slashes), e.g. /blog/\n"
          . "  # RewriteBase /blog/\n"
          . "\n"
          . "  # Never serve internals or docs directly.\n"
@@ -210,7 +210,7 @@ function pb_ensure_protection() {
     foreach ($files as $path => $content) {
         $dir = dirname($path);
         if (is_file($path)) continue;
-        // Only protect folders inside the PostBase install (a custom db_path outside the web root needs none).
+        // Only protect folders inside the JotKite install (a custom db_path outside the web root needs none).
         if (strpos(str_replace('\\', '/', $dir), str_replace('\\', '/', PB_ROOT)) !== 0) continue;
         if (!is_dir($dir)) @mkdir($dir, 0755, true);
         @file_put_contents($path, $content);
@@ -383,7 +383,7 @@ function pb_settings_defaults() {
         'photo_metadata'      => 'keep',          // keep | strip — EXIF location, camera, date (lib/media.php)
         'georank_sso'         => '1',
         'georank_editor_role' => 'editor',        // what a GeoRank "Editor" login becomes here
-        // Settings → Design. Empty = inherit (GeoRank site theme, or PostBase defaults).
+        // Settings → Design. Empty = inherit (GeoRank site theme, or JotKite defaults).
         'design_social_image' => '',
         'design_favicon'      => '',
         'design_font_body'    => '',
@@ -408,6 +408,7 @@ function pb_settings_defaults() {
         // ({from, to, at} JSON) that Admins see until they dismiss it.
         'installed_version'   => '',
         'upgrade_notice'      => '',
+        'rename_notice'       => '',              // '1' = show "PostBase is now JotKite" once
     ];
 }
 
@@ -430,6 +431,9 @@ function pb_version_check() {
         // Several updates before anyone looked: keep the oldest "from".
         $from = is_array($prev) && isset($prev['from']) ? (string) $prev['from'] : $known;
         $save['upgrade_notice'] = json_encode(['from' => $from, 'to' => PB_VERSION, 'at' => pb_now()]);
+        // 0.21.0: the product was renamed. Sites coming from an older version
+        // (or an unknown one) tell their Admins once.
+        if ($known === '' || version_compare($known, '0.21.0', '<')) $save['rename_notice'] = '1';
     }
     pb_settings_save($save);
 }
@@ -437,7 +441,7 @@ function pb_upgrade_notice() {
     $n = json_decode((string) pb_setting('upgrade_notice'), true);
     return is_array($n) && !empty($n['to']) ? $n : null;
 }
-// CHANGELOG.md sections for versions after $from up to $to (newest first, at most 6).
+// CHANGELOG.md sections for versions after $from up to $to (newest first, at most 12).
 function pb_changelog_between($from, $to) {
     $md = (string) @file_get_contents(PB_ROOT . '/CHANGELOG.md');
     $out = [];
@@ -447,7 +451,7 @@ function pb_changelog_between($from, $to) {
         if (version_compare($v, $to, '>')) continue;
         if ($from !== '' ? !version_compare($v, $from, '>') : $v !== $to) continue;
         $out[] = trim($sec);
-        if (count($out) >= 6) break;
+        if (count($out) >= 12) break; // a site can skip many versions (e.g. a Git deploy after weeks)
     }
     return $out;
 }
@@ -572,7 +576,7 @@ function pb_georank_session_role() {
     $r = $_SESSION['georank_role'] ?? '';
     return in_array($r, ['admin', 'editor'], true) ? $r : null;
 }
-// One shared PostBase account per GeoRank role (GeoRank logins are
+// One shared JotKite account per GeoRank role (GeoRank logins are
 // role-based, not per person). Created on first use; the display name can be
 // changed from My Account.
 function pb_georank_user($georankRole) {
@@ -629,7 +633,7 @@ function pb_attempt_login($email, $password) {
 // ----------------------------------------------------------------------------
 // "KEEP ME SIGNED IN" — typing a long email and password on a phone is the
 // hardest part of mobile publishing. After one sign-in, a device (e.g. the
-// PostBase app on the home screen) stays signed in for PB_DEVICE_DAYS days
+// JotKite app on the home screen) stays signed in for PB_DEVICE_DAYS days
 // of inactivity. Cookie = selector:secret; the database keeps only a hash of
 // the secret, so a leaked database can't sign anyone in. Each device can be
 // signed out from My account; a password change signs out all other devices.
@@ -1030,7 +1034,7 @@ function pb_sanitize_children(DOMDocument $doc, DOMNode $node) {
                 if ($child->hasAttribute($dim) && !ctype_digit($child->getAttribute($dim))) $child->removeAttribute($dim);
             }
         } elseif ($tag === 'figure') {
-            // Only PostBase's own layout classes survive (image wrap/size, video embed).
+            // Only JotKite's own layout classes survive (image wrap/size, video embed).
             $keep = array_filter(preg_split('/\s+/', $child->getAttribute('class')), function ($c) {
                 return (bool) preg_match('/^pb-(figure|embed|align-(left|right|center)|w-(s|m|l|full))$/', $c);
             });
@@ -1178,7 +1182,7 @@ function pb_import_remote_image($url) {
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_TIMEOUT => 20,
             CURLOPT_CONNECTTIMEOUT => 8,
-            CURLOPT_USERAGENT => 'UnnatiPostBase/' . PB_VERSION . ' (+' . PB_HOMEPAGE . ')',
+            CURLOPT_USERAGENT => 'JotKite/' . PB_VERSION . ' (+' . PB_HOMEPAGE . ')',
             CURLOPT_HTTPHEADER => ['Accept: image/webp,image/png,image/jpeg,image/gif;q=0.9,*/*;q=0.1'], // no AVIF: GD can't store it
             CURLOPT_WRITEFUNCTION => function ($c, $chunk) use (&$body, &$tooBig, $maxBytes) {
                 $body .= $chunk;
@@ -1274,6 +1278,6 @@ function pb_robots_add_sitemap() {
     $line = 'Sitemap: ' . pb_abs_url(pb_url('sitemap'));
     $raw = is_file($path) ? (string) file_get_contents($path) : "User-agent: *\nAllow: /\n";
     if (strpos($raw, $line) !== false) return 'robots.txt already lists the blog sitemap.';
-    $raw = rtrim($raw) . "\n\n# PostBase blog\n" . $line . "\n";
+    $raw = rtrim($raw) . "\n\n# JotKite blog\n" . $line . "\n";
     return @file_put_contents($path, $raw) === false ? null : 'Added the blog sitemap to robots.txt.';
 }

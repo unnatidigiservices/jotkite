@@ -1,12 +1,12 @@
 name: 💡 Feature request
-description: Suggest an idea that would make PostBase better.
+description: Suggest an idea that would make JotKite better.
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        PostBase stays small on purpose: drop-in PHP, no build step, fast on phones. Ideas that keep it that way are most likely to land.
-        Check the [roadmap](https://github.com/unnatidigiservices/postbase#roadmap) first.
+        JotKite stays small on purpose: drop-in PHP, no build step, fast on phones. Ideas that keep it that way are most likely to land.
+        Check the [roadmap](https://github.com/unnatidigiservices/jotkite#roadmap) first.
   - type: textarea
     id: problem
     attributes:
@@ -18,7 +18,7 @@ body:
   - type: textarea
     id: idea
     attributes:
-      label: What would you like PostBase to do?
+      label: What would you like JotKite to do?
     validations:
       required: true
   - type: dropdown

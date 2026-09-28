@@ -1,12 +1,12 @@
 name: 🐞 Bug report
-description: Something in PostBase isn't working as it should.
+description: Something in JotKite isn't working as it should.
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting! **Security problems:** please don't file them here — see [SECURITY.md](https://github.com/unnatidigiservices/postbase/blob/main/SECURITY.md).
-        Questions and how-tos are answered at [postbase.top](https://postbase.top).
+        Thanks for reporting! **Security problems:** please don't file them here — see [SECURITY.md](https://github.com/unnatidigiservices/jotkite/blob/main/SECURITY.md).
+        Questions and how-tos are answered at [jotkite.com](https://jotkite.com).
   - type: textarea
     id: what
     attributes:
@@ -28,14 +28,14 @@ body:
   - type: input
     id: version
     attributes:
-      label: PostBase version
+      label: JotKite version
       description: Shown in the admin footer, e.g. 0.12.0
     validations:
       required: true
   - type: dropdown
     id: setup
     attributes:
-      label: How is PostBase installed?
+      label: How is JotKite installed?
       options:
         - On a GeoRank site (/blog/)
         - In a folder next to another site (/blog/)

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>JotKite</title>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0A8CFF"/><stop offset=".45" stop-color="#1F4BFF"/><stop offset="1" stop-color="#8B2CF6"/></linearGradient>
+    <mask id="m" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512"><g transform="translate(256,256) rotate(32) scale(1.08) translate(0,-37)">
+  <path d="M0,-140 L88,-40 L0,215 L-88,-40 Z" fill="#fff" stroke="#fff" stroke-width="16" stroke-linejoin="round"/>
+  <circle cx="0" cy="-40" r="19" fill="#000"/>
+  <path d="M0,-40 V196" stroke="#000" stroke-width="11" stroke-linecap="round"/>
+</g></mask>
+  </defs>
+  
+  <rect width="512" height="512" fill="url(#g)" mask="url(#m)"/>
+</svg>

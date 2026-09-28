@@ -8,10 +8,10 @@ Security fixes go into the latest release. GeoRank sites get them through **Cont
 
 Please **don't** open a public GitHub issue for security problems.
 
-- Preferred: GitHub's private [**Report a vulnerability**](https://github.com/unnatidigiservices/postbase/security/advisories/new) form.
-- Or: contact us through **[postbase.top](https://postbase.top)** and mark the message "Security".
+- Preferred: GitHub's private [**Report a vulnerability**](https://github.com/unnatidigiservices/jotkite/security/advisories/new) form.
+- Or: contact us through **[jotkite.com](https://jotkite.com)** and mark the message "Security".
 
-Please include the PostBase version (shown in the admin footer), what an attacker could do, and steps to reproduce. We aim to acknowledge reports within 3 working days and to ship a fix before any public disclosure, and we'll credit you in the changelog unless you'd rather stay anonymous.
+Please include the JotKite version (shown in the admin footer), what an attacker could do, and steps to reproduce. We aim to acknowledge reports within 3 working days and to ship a fix before any public disclosure, and we'll credit you in the changelog unless you'd rather stay anonymous.
 
 ## Scope
 

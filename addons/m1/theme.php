@@ -1,7 +1,7 @@
 <?php
 /**
- * PostBase M1 ("Mobile One") theme · https://postbase.top
- * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-PostBase-Commercial
+ * JotKite M1 ("Mobile One") theme · https://jotkite.com
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-JotKite-Commercial
  *
  * One layout for every device:
  *   - a 720px centred column (header, container and footer),
@@ -20,7 +20,7 @@ return function (array $page) {
     $containerBg = $color('container_bg', '#ffffff');
     $footerBg = $color('footer_bg', '#160845');
     $pageBg = $color('page_bg', '#eef1f7');
-    // Outside the column: the PostBase gradient by default. A site that picked its own
+    // Outside the column: the JotKite gradient by default. A site that picked its own
     // solid colour before this option existed (M1 1.0.x) keeps that colour.
     $style = pb_setting('addon:m1:page_style');
     if ($style === null) $style = strtolower($pageBg) !== '#eef1f7' ? 'color' : 'gradient';

@@ -1,5 +1,5 @@
-/*! Unnati PostBase — admin script · https://postbase.top
- * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-PostBase-Commercial
+/*! JotKite — admin script · https://jotkite.com
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-JotKite-Commercial
  * A deliberately small rich-text editor: contenteditable + a toolbar. The
  * server re-sanitizes everything on save (lib/postbase.php), so this file
  * only has to keep the editing experience tidy, not enforce security. */

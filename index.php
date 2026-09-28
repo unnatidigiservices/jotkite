@@ -1,8 +1,8 @@
 <?php
 /**
- * Unnati PostBase — public blog front controller.
+ * JotKite — public blog front controller.
  *
- * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-PostBase-Commercial
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-JotKite-Commercial
  *
  * Routes (pretty URLs via .htaccess, query-string fallback in brackets):
  *   /blog/                         post list          (?page=N)
@@ -113,7 +113,7 @@ if ($view === 'feed') {
        . '<link>' . pb_e(pb_abs_url(pb_url())) . "</link>\n"
        . '<description>' . pb_e(pb_setting('blog_description')) . "</description>\n"
        . '<language>' . pb_e(pb_setting('language')) . "</language>\n"
-       . '<generator>Unnati PostBase ' . PB_HOMEPAGE . "</generator>\n"
+       . '<generator>JotKite ' . PB_HOMEPAGE . "</generator>\n"
        . '<atom:link href="' . pb_e(pb_abs_url(pb_url('feed'))) . '" rel="self" type="application/rss+xml"/>' . "\n";
     foreach ($posts as $p) {
         $link = pb_abs_url(pb_url('post', $p['slug']));

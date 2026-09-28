@@ -1,10 +1,10 @@
-/*! Unnati PostBase — paste & Markdown engine · https://postbase.top
- * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-PostBase-Commercial
+/*! JotKite — paste & Markdown engine · https://jotkite.com
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-JotKite-Commercial
  *
  * "Write anywhere, paste without pain." Turns whatever a writer copies —
  * Word, Google Docs, WordPress (Gutenberg) blocks, Notion, web pages,
  * Markdown from any text editor, or plain text — into the small, clean HTML
- * the PostBase editor uses. Pure functions, no DOM side effects, so it is
+ * the JotKite editor uses. Pure functions, no DOM side effects, so it is
  * easy to test (window.PBPaste). The server sanitizer still has the final say.
  */
 (function (root) {
@@ -195,7 +195,7 @@
       if (fig.classList.contains('wp-block-pullquote') && !fig.querySelector('blockquote')) { rename(fig, 'blockquote'); return; }
       unwrap(fig);
     });
-    // Every image becomes a PostBase figure (wrap + size + caption preserved).
+    // Every image becomes a JotKite figure (wrap + size + caption preserved).
     Array.from(body.querySelectorAll('img')).forEach((img) => {
       if (img.closest('figure.pb-figure')) return;
       const host = img.closest('figure') || null;

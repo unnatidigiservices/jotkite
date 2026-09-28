@@ -1,8 +1,8 @@
-# Building PostBase addons (themes & plugins)
+# Building JotKite addons (themes & plugins)
 
-Addons extend PostBase without touching its core files, so updates never overwrite your work. An addon is a folder in `addons/` with an `addon.json` manifest. Admins activate addons in **Settings → Addons**, which also shows a settings form built from the manifest.
+Addons extend JotKite without touching its core files, so updates never overwrite your work. An addon is a folder in `addons/` with an `addon.json` manifest. Admins activate addons in **Settings → Addons**, which also shows a settings form built from the manifest.
 
-The official **PostBase M1** theme in [`addons/m1/`](../addons/m1) is the reference implementation.
+The official **JotKite M1** theme in [`addons/m1/`](../addons/m1) is the reference implementation.
 
 ```
 addons/
@@ -35,7 +35,7 @@ addons/
 | Field | |
 |---|---|
 | `type` | `"theme"` (controls the whole public page) or `"plugin"` (adds behaviour through hooks). Only one theme is active at a time; any number of plugins. |
-| `requires` | The minimum PostBase version. Older versions refuse to activate it. |
+| `requires` | The minimum JotKite version. Older versions refuse to activate it. |
 | `settings` | Optional. Field types are `text`, `textarea`, `url`, `image` (with an upload button), `color`, `select` (needs `options`), `checkbox` and `number`. Keys use `a-z 0-9 _`. Each field can have `default` and `help`. |
 
 Read a value with `pb_addon_setting('my-addon', 'color')`, or all of them with `pb_addon_settings('my-addon')`. Values are validated by type before they're saved.
@@ -74,14 +74,14 @@ return function (array $page) { ?>
 | `blog_title`, `blog_url` (the homepage), `posts_url` (the post list: same as `blog_url`, or `/posts/` when a Page is the homepage), `site_url`, `feed_url`, `favicon`, `year`, `lang` | Site basics. Point search forms at `posts_url`. |
 | `theme_url`, `theme_version` | URL of your addon folder and your addon.json version, for your own assets (`theme.js?v=...`). |
 | `settings` | Your theme's settings, defaults included. |
-| `powered_by` | The "Powered by Unnati PostBase" link (HTML). |
+| `powered_by` | The "Powered by JotKite" link (HTML). |
 
 Rules:
 - Keep `class="pb-page"` on `<body>` and `class="pb-main"` on the main element, so Settings → Design (fonts and colours) keeps working.
 - Escape anything you print with `pb_e()`, except `head`, `content`, `body_end` and `powered_by`, which are already safe HTML.
 - `pb_text_on($hex)` returns black or white text for a background colour.
-- If your theme throws an error, PostBase logs it and shows the built-in layout, so a broken theme never breaks the blog.
-- Themes are used when Settings → General → Layout is *PostBase theme* (or *Automatic* on non-GeoRank sites). On GeoRank sites the site's own design is the default.
+- If your theme throws an error, JotKite logs it and shows the built-in layout, so a broken theme never breaks the blog.
+- Themes are used when Settings → General → Layout is *JotKite theme* (or *Automatic* on non-GeoRank sites). On GeoRank sites the site's own design is the default.
 
 ## Plugins
 
@@ -127,8 +127,8 @@ The optional third argument to `pb_add_action` / `pb_add_filter` is a priority (
 - Escape output with `pb_e()`, and never print user input raw.
 - Use `pb_q()` with parameters for database access, never string-built SQL.
 - Admin-only features: check `pb_can(pb_current_user(), 'settings.manage')`, and use `pb_csrf_field()` / `pb_csrf_check()` on forms.
-- Addons are installed by uploading the folder (FTP, File Manager, Git). PostBase deliberately has no "upload addon zip" button, because a zip upload would let anyone with an admin password run arbitrary code.
+- Addons are installed by uploading the folder (FTP, File Manager, Git). JotKite deliberately has no "upload addon zip" button, because a zip upload would let anyone with an admin password run arbitrary code.
 
 ## Sharing your addon
 
-Publish it on GitHub with the topic `postbase-addon` and open an issue in [unnatidigiservices/postbase](https://github.com/unnatidigiservices/postbase/issues) to have it listed on [postbase.top](https://postbase.top). Addons you distribute must be AGPL-compatible, unless you hold a PostBase commercial license.
+Publish it on GitHub with the topic `postbase-addon` and open an issue in [unnatidigiservices/postbase](https://github.com/unnatidigiservices/jotkite/issues) to have it listed on [jotkite.com](https://jotkite.com). Addons you distribute must be AGPL-compatible, unless you hold a JotKite commercial license.

@@ -1,4 +1,4 @@
-/*! PostBase M1 theme · https://postbase.top · SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-PostBase-Commercial */
+/*! JotKite M1 theme · https://jotkite.com · SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-JotKite-Commercial */
 (function () {
   'use strict';
   var btn = document.querySelector('.m1-burger');

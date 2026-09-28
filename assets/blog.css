@@ -1,8 +1,8 @@
-/*! Unnati PostBase — public blog styles · https://postbase.top
- * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-PostBase-Commercial
+/*! JotKite — public blog styles · https://jotkite.com
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-JotKite-Commercial
  * Every colour/size reads a GeoRank theme token first (--accent, --surface,
  * --border, --radius, --max-w, --font-heading …) so the blog follows the
- * site's Design tab; the fallbacks are the standalone PostBase look. */
+ * site's Design tab; the fallbacks are the standalone JotKite look. */
 .pb-page {
   --pb-accent: var(--accent, #1d5cff);
   --pb-text: var(--text, #0f1b3d);

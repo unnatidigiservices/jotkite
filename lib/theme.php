@@ -1,8 +1,8 @@
 <?php
 /**
- * Unnati PostBase — public page layout.
+ * JotKite — public page layout.
  *
- * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-PostBase-Commercial
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-JotKite-Commercial
  *
  * Two layouts:
  *   georank    — wraps blog pages in the site's own meta-global.html,
@@ -15,7 +15,7 @@ if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 
 // Stylesheet/preload tags from the homepage <head>, and script tags from its
 // <body>, so blog pages load exactly the same theme assets (cache-busting
-// ?v= numbers included) without PostBase knowing anything about them.
+// ?v= numbers included) without JotKite knowing anything about them.
 function pb_georank_page_assets() {
     $idx = PB_SITE_DIR . '/index.html';
     $out = ['head' => '', 'foot' => ''];
@@ -116,16 +116,16 @@ function pb_render_page(array $meta, $content) {
     $favicon = (string) pb_setting('design_favicon');
     if ($favicon !== '') $tail .= '<link rel="icon" href="' . pb_e($favicon) . '">' . "\n"; // after meta-global, so it wins
     $designCss = pb_design_css();
-    if ($designCss !== '') $tail .= '<style>/* PostBase design settings · https://postbase.top */' . $designCss . '</style>' . "\n";
-    $tail .= '<meta name="generator" content="Unnati PostBase (' . PB_HOMEPAGE . ')">' . "\n";
+    if ($designCss !== '') $tail .= '<style>/* JotKite design settings · https://jotkite.com */' . $designCss . '</style>' . "\n";
+    $tail .= '<meta name="generator" content="JotKite (' . PB_HOMEPAGE . ')">' . "\n";
     $tail .= $meta['head'] ?? '';
     $tail .= pb_capture_action('pb_head', $meta);       // plugins: extra <head> tags
     $bodyEnd = pb_capture_action('pb_body_end', $meta); // plugins: scripts before </body>
     // Settings → Code (Admin only, printed as entered): verification tags, analytics, chat widgets…
     $codeHead = trim((string) pb_setting('code_head'));
     $codeFooter = trim((string) pb_setting('code_footer'));
-    if ($codeHead !== '') $tail .= "<!-- PostBase: custom head code -->\n" . $codeHead . "\n";
-    if ($codeFooter !== '') $bodyEnd .= "<!-- PostBase: custom footer code -->\n" . $codeFooter . "\n";
+    if ($codeHead !== '') $tail .= "<!-- JotKite: custom head code -->\n" . $codeHead . "\n";
+    if ($codeFooter !== '') $bodyEnd .= "<!-- JotKite: custom footer code -->\n" . $codeFooter . "\n";
     $tail .= pb_demo_public_head();    // demo sites (lib/demo.php): noindex…
     $bodyEnd .= pb_demo_public_bar();  // …and a "Try the admin" bar
 
@@ -175,7 +175,7 @@ function pb_render_page(array $meta, $content) {
             'theme_version' => $theme['version'],   // for cache-busting your own assets
             'settings' => pb_addon_settings($theme['slug']),
             'year' => date('Y'),
-            'powered_by' => 'Powered by <a href="' . PB_HOMEPAGE . '" rel="noopener">Unnati PostBase</a>',
+            'powered_by' => 'Powered by <a href="' . PB_HOMEPAGE . '" rel="noopener">JotKite</a>',
         ];
         if (pb_render_with_theme($theme, $page)) return;
     }
@@ -190,7 +190,7 @@ function pb_render_page(array $meta, $content) {
        . pb_nav_html('pb-topnav') . '</div></header>' . "\n"
        . '<main id="main" class="pb-main">' . "\n" . $content . "\n</main>\n"
        . '<footer class="pb-footer"><div class="pb-wrap">&copy; ' . date('Y') . ' ' . pb_e(pb_setting('blog_title'))
-       . ' &middot; Powered by <a href="' . PB_HOMEPAGE . '" rel="noopener">Unnati PostBase</a></div></footer>' . "\n"
+       . ' &middot; Powered by <a href="' . PB_HOMEPAGE . '" rel="noopener">JotKite</a></div></footer>' . "\n"
        . $bodyEnd . "</body>\n</html>\n";
 }
 

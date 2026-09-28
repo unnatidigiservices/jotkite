@@ -1,7 +1,7 @@
 <?php
 /**
- * Unnati PostBase — self-resetting demo mode · https://postbase.top
- * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-PostBase-Commercial
+ * JotKite — self-resetting demo mode · https://jotkite.com
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-JotKite-Commercial
  *
  * Turned on in config.php only (never from the admin), for a public "try it"
  * site:
@@ -141,11 +141,11 @@ function pb_demo_bootstrap() {
 
 function pb_demo_sample_content(array $ids) {
     if (!(string) pb_val("SELECT value FROM settings WHERE key = 'blog_title'")) {
-        pb_settings_save(['blog_title' => 'PostBase Demo', 'blog_description' => 'Write anywhere, post here. Try the admin: everything resets every ' . pb_demo_minutes() . ' minutes.']);
+        pb_settings_save(['blog_title' => 'JotKite Demo', 'blog_description' => 'Write anywhere, post here. Try the admin: everything resets every ' . pb_demo_minutes() . ' minutes.']);
     }
     pb_q("INSERT INTO categories (slug, name, description, sort) VALUES ('news', 'News', 'What is new in the shop', 1)");
     $cat = (int) pb_db()->lastInsertId();
-    // A real image for the photo post: the PostBase logo, copied into uploads/.
+    // A real image for the photo post: the JotKite logo, copied into uploads/.
     $img = '';
     $sub = gmdate('Y') . '/' . gmdate('m');
     if (is_dir(PB_UPLOAD_DIR . '/' . $sub) || @mkdir(PB_UPLOAD_DIR . '/' . $sub, 0755, true)) {
@@ -154,8 +154,8 @@ function pb_demo_sample_content(array $ids) {
     $now = pb_now();
     $ago = function ($h) { return gmdate('Y-m-d H:i:s', time() - $h * 3600); };
     $posts = [
-        ['welcome-to-the-demo', 'Welcome to the PostBase demo', 'published', $ids['admin'], $ago(2), 1, 'post',
-         '<p>This is a live PostBase blog. <strong>Sign in to the admin</strong> with one click, as an Admin, Editor or Contributor, and try anything: write, paste from Word or Google Docs, upload photos from your phone, publish, or break things.</p>'
+        ['welcome-to-the-demo', 'Welcome to the JotKite demo', 'published', $ids['admin'], $ago(2), 1, 'post',
+         '<p>This is a live JotKite blog. <strong>Sign in to the admin</strong> with one click, as an Admin, Editor or Contributor, and try anything: write, paste from Word or Google Docs, upload photos from your phone, publish, or break things.</p>'
          . '<h2>Everything resets</h2><p>Every ' . pb_demo_minutes() . ' minutes the demo goes back to this starting point, so nothing you do here is permanent.</p>'
          . '<ul><li>Paste a Google Doc and watch the formatting survive.</li><li>Type <code>## </code> for a heading, or <code>- </code> for a list.</li><li>Open the admin on your phone and add it to your home screen.</li></ul>'],
         ['new-stock-arrived', 'New stock arrived', 'published', $ids['editor'], $ago(26), 0, 'post',
@@ -184,5 +184,5 @@ function pb_demo_public_bar() {
     if (!pb_demo_on()) return '';
     return '<div style="position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:9999;max-width:calc(100vw - 24px);background:#0f1b3d;color:#fff;'
          . 'font:14px/1.4 system-ui,sans-serif;padding:9px 16px;border-radius:99px;box-shadow:0 6px 24px rgba(0,0,0,.25);text-align:center">'
-         . 'PostBase demo · resets every ' . pb_demo_minutes() . ' min · <a href="' . pb_e(PB_BASE_PATH . '/admin/') . '" style="color:#9ec1ff;font-weight:600">Try the admin →</a></div>' . "\n";
+         . 'JotKite demo · resets every ' . pb_demo_minutes() . ' min · <a href="' . pb_e(PB_BASE_PATH . '/admin/') . '" style="color:#9ec1ff;font-weight:600">Try the admin →</a></div>' . "\n";
 }

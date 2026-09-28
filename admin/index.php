@@ -1,8 +1,8 @@
 <?php
 /**
- * Unnati PostBase — admin (writing, review workflow, users, settings).
+ * JotKite — admin (writing, review workflow, users, settings).
  *
- * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-PostBase-Commercial
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-JotKite-Commercial
  */
 define('PB_ROOT', dirname(__DIR__));
 define('PB_BASE_PATH', rtrim(str_replace('\\', '/', dirname(dirname($_SERVER['SCRIPT_NAME']))), '/'));
@@ -15,18 +15,18 @@ if (isset($_GET['manifest'])) {
     header('Content-Type: application/manifest+json');
     header('Cache-Control: public, max-age=3600');
     echo json_encode([
-        'name' => $name . ' · PostBase',
-        'short_name' => (function_exists('mb_strlen') ? mb_strlen($name) : strlen($name)) <= 12 ? $name : 'PostBase',
+        'name' => $name . ' · JotKite',
+        'short_name' => (function_exists('mb_strlen') ? mb_strlen($name) : strlen($name)) <= 12 ? $name : 'JotKite',
         'description' => 'Write anywhere, post here.',
         'id' => PB_BASE_PATH . '/admin/',
         'start_url' => PB_BASE_PATH . '/admin/?view=edit',
         'scope' => PB_BASE_PATH . '/admin/',
         'display' => 'standalone',
         'background_color' => '#ffffff',
-        'theme_color' => '#1d5cff',
+        'theme_color' => '#1f4bff',
         'icons' => [
-            ['src' => PB_BASE_PATH . '/assets/icon-192.png', 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any maskable'],
-            ['src' => PB_BASE_PATH . '/assets/icon-512.png', 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any maskable'],
+            ['src' => PB_BASE_PATH . '/assets/icon-192.png', 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any'], // the rounded tile is the icon: not maskable
+            ['src' => PB_BASE_PATH . '/assets/icon-512.png', 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any'],
         ],
         'shortcuts' => [
             ['name' => 'Write', 'url' => PB_BASE_PATH . '/admin/?view=edit'],
@@ -71,10 +71,10 @@ function pb_georank_admin_url() {
 function pb_app_head() {
     $b = pb_e(PB_BASE_PATH);
     return '<link rel="manifest" href="' . $b . '/admin/?manifest=1">' . "\n"
-         . '<meta name="theme-color" content="#1d5cff">' . "\n"
+         . '<meta name="theme-color" content="#1f4bff">' . "\n"
          . '<meta name="mobile-web-app-capable" content="yes">' . "\n"
          . '<meta name="apple-mobile-web-app-capable" content="yes">' . "\n"
-         . '<meta name="apple-mobile-web-app-title" content="PostBase">' . "\n"
+         . '<meta name="apple-mobile-web-app-title" content="JotKite">' . "\n"
          . '<meta name="apple-mobile-web-app-status-bar-style" content="default">' . "\n";
 }
 function pb_csrf_field() {
@@ -159,7 +159,7 @@ if (!$user && pb_count_users() === 0) {
             pb_q("INSERT INTO users (email, name, password_hash, role, created_at) VALUES (?, ?, ?, 'admin', ?)",
                 [$email, $name, password_hash($pass, PASSWORD_DEFAULT), pb_now()]);
             pb_attempt_login($email, $pass);
-            pb_flash('Welcome to PostBase. Write your first post!');
+            pb_flash('Welcome to JotKite. Write your first post!');
             pb_redirect('view=edit');
         }
     }
@@ -217,7 +217,7 @@ if (!$user) {
         }
     }
     $gr = pb_georank_admin_url();
-    pb_auth_page(pb_demo_on() ? 'Try the PostBase demo' : 'Sign in', $err, function () use ($gr, $view) {
+    pb_auth_page(pb_demo_on() ? 'Try the JotKite demo' : 'Sign in', $err, function () use ($gr, $view) {
         $next = isset($_GET['view']) && preg_match('/^[a-z]+$/', $view) ? 'view=' . $view : '';
         if (pb_demo_on()): ?>
         <p class="pb-muted">Pick a role: no password needed. Everything you do is wiped every <?= pb_demo_minutes() ?> minutes (next reset in <?= pb_demo_minutes_left() ?> min).</p>
@@ -331,6 +331,10 @@ if ($isPost) {
             pb_flash('Owner tools locked.');
         }
         pb_redirect('view=settings&tab=demo');
+    }
+    if ($do === 'rename_dismiss' && pb_can($user, 'settings.manage')) {
+        pb_settings_save(['rename_notice' => '']);
+        pb_redirect(preg_match('/^[a-z]+$/', (string) ($_POST['back'] ?? '')) ? 'view=' . $_POST['back'] : '');
     }
     if ($do === 'upgrade_dismiss' && pb_can($user, 'settings.manage')) {
         pb_settings_save(['upgrade_notice' => '']);
@@ -524,7 +528,7 @@ if ($isPost) {
                 pb_flash($a['name'] . ' can\'t be activated: ' . $a['error'], 'error');
             } elseif ($a['type'] === 'theme') {
                 pb_settings_save(['theme' => $slug]);
-                pb_flash($a['name'] . ' is now your theme.' . (pb_layout_mode() === 'georank' ? ' (It shows when Layout is set to PostBase theme.)' : ''));
+                pb_flash($a['name'] . ' is now your theme.' . (pb_layout_mode() === 'georank' ? ' (It shows when Layout is set to JotKite theme.)' : ''));
             } else {
                 $list = pb_active_plugin_slugs();
                 if (!in_array($slug, $list, true)) $list[] = $slug;
@@ -925,7 +929,7 @@ if ($view === 'edit') {
       <div class="pbp-card"><strong class="pbp-h">Post card</strong><p class="pbp-p pbp-small">Short summary of the post…</p></div>
       <span class="pbp-btn">Search</span>
     </div>
-    <p class="pb-small pb-muted"><?= $isGr ? 'Empty values follow your GeoRank theme (Design tab), so the blog keeps matching the site.' : 'Empty values use the PostBase defaults.' ?></p>
+    <p class="pb-small pb-muted"><?= $isGr ? 'Empty values follow your GeoRank theme (Design tab), so the blog keeps matching the site.' : 'Empty values use the JotKite defaults.' ?></p>
   </div>
 </div>
 <?php elseif ($stab === 'demo'):
@@ -1001,12 +1005,12 @@ if ($view === 'edit') {
     }; ?>
 <?php foreach ($GLOBALS['pb_addon_errors'] as $err): ?><div class="pb-flash pb-flash-error">Addon error (skipped safely): <?= pb_e($err) ?></div><?php endforeach; ?>
 <?php if (pb_layout_mode() === 'georank'): ?>
-  <div class="pb-note pb-note-info">This blog currently uses the <strong>GeoRank site design</strong>. Themes apply when Settings → General → Layout is set to <em>PostBase theme</em>. Plugins always apply.</div>
+  <div class="pb-note pb-note-info">This blog currently uses the <strong>GeoRank site design</strong>. Themes apply when Settings → General → Layout is set to <em>JotKite theme</em>. Plugins always apply.</div>
 <?php endif; ?>
 <div class="pb-card">
   <h3 class="pb-h3">Themes</h3>
   <div class="pb-addon-grid">
-    <?php $card(['name' => 'Default', 'version' => PB_VERSION, 'description' => 'The built-in PostBase layout.', 'author' => 'Unnati Digi Services', 'homepage' => PB_HOMEPAGE],
+    <?php $card(['name' => 'Default', 'version' => PB_VERSION, 'description' => 'The built-in JotKite layout.', 'author' => 'Unnati Digi Services', 'homepage' => PB_HOMEPAGE],
         !$activeTheme, $activeTheme ? $btn('addon_activate', '', 'Activate', true) : ''); ?>
     <?php foreach ($themes as $a): $on = $activeTheme && $activeTheme['slug'] === $a['slug'];
         $card($a, $on, $on || !empty($a['error']) ? ($on && $a['settings'] ? '<a class="pb-btn pb-btn-sm" href="#addon-' . pb_e($a['slug']) . '">Settings</a>' : '') : $btn('addon_activate', $a['slug'], 'Activate', true));
@@ -1126,7 +1130,7 @@ if ($view === 'edit') {
     <label>Layout<select name="layout">
       <option value="auto"<?= $s('layout') === 'auto' ? ' selected' : '' ?>>Automatic (use the GeoRank site design when found)</option>
       <option value="georank"<?= $s('layout') === 'georank' ? ' selected' : '' ?>>GeoRank site header, footer and theme</option>
-      <option value="standalone"<?= $s('layout') === 'standalone' ? ' selected' : '' ?>>PostBase theme (choose it in Settings → Addons)</option>
+      <option value="standalone"<?= $s('layout') === 'standalone' ? ' selected' : '' ?>>JotKite theme (choose it in Settings → Addons)</option>
     </select></label>
     <label class="pb-check"><input type="checkbox" name="pretty_urls" value="1"<?= $s('pretty_urls') === '1' ? ' checked' : '' ?>> Clean URLs (<code><?= pb_e(PB_BASE_PATH) ?>/my-post/</code>) — needs Apache mod_rewrite</label>
     <label>Site URL <span class="pb-muted pb-small">(optional, e.g. https://example.com — used for canonical links, RSS and sitemap)</span><input name="site_url" value="<?= pb_e($s('site_url')) ?>" placeholder="<?= pb_e(pb_origin()) ?>"></label>
@@ -1150,11 +1154,11 @@ if ($view === 'edit') {
     </div>
     <div class="pb-card">
       <h3 class="pb-h3">System</h3>
-      <p class="pb-small">PostBase <?= pb_e(PB_VERSION) ?> · PHP <?= pb_e(PHP_VERSION) ?> · SQLite <?= pb_e($sqliteVer) ?></p>
+      <p class="pb-small">JotKite <?= pb_e(PB_VERSION) ?> · PHP <?= pb_e(PHP_VERSION) ?> · SQLite <?= pb_e($sqliteVer) ?></p>
       <p class="pb-small">GeoRank site: <?= $isGr ? '<strong>detected</strong> — using its header, footer and theme' : 'not detected' ?></p>
       <p class="pb-small">Image resizing: <?= function_exists('imagecreatetruecolor') ? 'on (GD)' : 'off — GD extension missing' ?></p>
       <p class="pb-small pb-muted">Back up <code>data/postbase.sqlite</code> and the <code>uploads/</code> folder to back up the whole blog.</p>
-      <p class="pb-small">Help, guides and support: <a href="<?= PB_HOMEPAGE ?>" target="_blank" rel="noopener">postbase.top</a> · Report a bug: <a href="<?= PB_REPO_URL ?>/issues" target="_blank" rel="noopener">GitHub Issues</a></p>
+      <p class="pb-small">Help, guides and support: <a href="<?= PB_HOMEPAGE ?>" target="_blank" rel="noopener">jotkite.com</a> · Report a bug: <a href="<?= PB_REPO_URL ?>/issues" target="_blank" rel="noopener">GitHub Issues</a></p>
     </div>
   </div>
 </div>
@@ -1360,7 +1364,8 @@ $nav = [
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <?= pb_app_head() ?>
-<title><?= pb_e($title) ?> ·<?= pb_e(pb_setting('blog_title')) ?> · PostBase</title>
+<title><?= pb_e($title) ?> · <?= pb_e(pb_setting('blog_title')) ?> · JotKite</title>
+<link rel="icon" href="<?= pb_e(PB_BASE_PATH) ?>/assets/jk-favicon.svg" type="image/svg+xml">
 <link rel="icon" href="<?= pb_e(PB_BASE_PATH) ?>/assets/favicon.png" type="image/png">
 <link rel="apple-touch-icon" href="<?= pb_e(PB_BASE_PATH) ?>/assets/apple-touch-icon.png">
 <link rel="stylesheet" href="<?= pb_e(PB_BASE_PATH) ?>/assets/admin.css?v=<?= pb_e(PB_VERSION) ?>">
@@ -1368,7 +1373,7 @@ $nav = [
 <body class="pb-admin">
 <div class="pb-shell">
   <aside class="pb-sidebar">
-    <a class="pb-logo" href="<?= pb_e(pb_admin_url()) ?>" aria-label="Unnati PostBase"><img src="<?= pb_e(PB_BASE_PATH) ?>/assets/favicon.png" alt="" width="36" height="36"><img class="pb-wordmark-img" src="<?= pb_e(PB_BASE_PATH) ?>/assets/logo-wordmark.svg" alt="PostBase" height="28"></a>
+    <a class="pb-logo" href="<?= pb_e(pb_admin_url()) ?>" aria-label="JotKite"><img src="<?= pb_e(PB_BASE_PATH) ?>/assets/jk-icon.svg" alt="" width="36" height="36"><span class="pb-wordmark" aria-hidden="true">Jot<b>Kite</b></span></a>
     <nav>
       <?php foreach ($nav as [$key, $label, $icon, $show]): if (!$show) continue;
         $onPages = ($_GET['type'] ?? '') === 'page';
@@ -1393,11 +1398,23 @@ $nav = [
     <div class="pb-demo-bar" role="note">🧪 <strong>Demo</strong> · you're signed in as <?= pb_e(pb_role_label($user['role'])) ?>. Try anything: it all resets in <?= pb_demo_minutes_left() ?> min.
       <?php if (!empty($_SESSION['pb_uid'])): ?><a href="<?= pb_e(pb_admin_url('logout=' . pb_csrf_token())) ?>">Switch role</a><?php endif; ?></div>
     <?php endif; ?>
+    <?php if (pb_can($user, 'settings.manage') && pb_setting('rename_notice') === '1'): ?>
+    <div class="pb-upgrade pb-rename" role="status">
+      <div class="pb-upgrade-head">
+        <img src="<?= pb_e(PB_BASE_PATH) ?>/assets/jk-icon.svg" alt="" width="40" height="40">
+        <div><strong>PostBase is now JotKite</strong>
+          <span class="pb-small">Same software, same posts and settings; nothing to do. The new name avoids confusion with other products called PostBase.
+            New home: <a href="<?= PB_HOMEPAGE ?>" target="_blank" rel="noopener">jotkite.com</a> · code: <a href="<?= PB_REPO_URL ?>" target="_blank" rel="noopener">GitHub</a></span></div>
+        <form method="post" class="pb-upgrade-dismiss"><?= pb_csrf_field() ?><input type="hidden" name="do" value="rename_dismiss"><input type="hidden" name="back" value="<?= pb_e($view) ?>">
+          <button class="pb-btn pb-btn-sm">Got it</button></form>
+      </div>
+    </div>
+    <?php endif; ?>
     <?php if (pb_can($user, 'settings.manage') && ($up = pb_upgrade_notice())): $notes = pb_changelog_between((string) $up['from'], (string) $up['to']); ?>
     <div class="pb-upgrade" role="status">
       <div class="pb-upgrade-head">
         <span class="pb-upgrade-icon" aria-hidden="true">⬆️</span>
-        <div><strong>PostBase was upgraded automatically to version <?= pb_e($up['to']) ?></strong>
+        <div><strong>JotKite was upgraded automatically to version <?= pb_e($up['to']) ?></strong>
           <span class="pb-small pb-muted"><?= $up['from'] !== '' ? 'from ' . pb_e($up['from']) . ' · ' : '' ?><?= pb_e(pb_format_date($up['at'], 'j M Y, g:i a')) ?></span></div>
         <form method="post" class="pb-upgrade-dismiss"><?= pb_csrf_field() ?><input type="hidden" name="do" value="upgrade_dismiss"><input type="hidden" name="back" value="<?= pb_e($view) ?>">
           <button class="pb-btn pb-btn-sm">Dismiss</button></form>
@@ -1412,7 +1429,7 @@ $nav = [
       <div class="pb-flash pb-flash-<?= pb_e($type) ?>" role="status"><?= pb_e($msg) ?></div>
     <?php endforeach; ?>
     <?= $content ?>
-    <footer class="pb-admin-foot"><span class="pb-mobile-only"><?php if ($georankUrl): ?><a href="<?= pb_e($georankUrl) ?>">GeoRank dashboard</a> · <?php endif; ?></span>Unnati PostBase <?= pb_e(PB_VERSION) ?> · <a href="<?= PB_HOMEPAGE ?>" target="_blank" rel="noopener">Help &amp; support</a> · <a href="<?= PB_REPO_URL ?>" target="_blank" rel="noopener">GitHub</a></footer>
+    <footer class="pb-admin-foot"><span class="pb-mobile-only"><?php if ($georankUrl): ?><a href="<?= pb_e($georankUrl) ?>">GeoRank dashboard</a> · <?php endif; ?></span>JotKite <?= pb_e(PB_VERSION) ?> · <a href="<?= PB_HOMEPAGE ?>" target="_blank" rel="noopener">Help &amp; support</a> · <a href="<?= PB_REPO_URL ?>" target="_blank" rel="noopener">GitHub</a></footer>
   </div>
 </div>
 <script>window.PB = <?= json_encode(['csrf' => pb_csrf_token(), 'endpoint' => pb_admin_url(), 'maxMb' => pb_config('max_upload_mb'), 'maxPx' => (int) pb_config('max_image_px'), 'keepMeta' => pb_setting('photo_metadata') !== 'strip','adminUrl' => pb_admin_url()]) ?>;</script>
@@ -1433,14 +1450,15 @@ function pb_auth_page($heading, $error, callable $body) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <?= pb_app_head() ?>
-<title><?= pb_e($heading) ?> · PostBase</title>
+<title><?= pb_e($heading) ?> · JotKite</title>
+<link rel="icon" href="<?= pb_e(PB_BASE_PATH) ?>/assets/jk-favicon.svg" type="image/svg+xml">
 <link rel="icon" href="<?= pb_e(PB_BASE_PATH) ?>/assets/favicon.png" type="image/png">
 <link rel="apple-touch-icon" href="<?= pb_e(PB_BASE_PATH) ?>/assets/apple-touch-icon.png">
 <link rel="stylesheet" href="<?= pb_e(PB_BASE_PATH) ?>/assets/admin.css?v=<?= pb_e(PB_VERSION) ?>">
 </head>
 <body class="pb-admin pb-auth">
   <div class="pb-auth-box">
-    <div class="pb-logo pb-logo-lg" role="img" aria-label="Unnati PostBase"><img src="<?= pb_e(PB_BASE_PATH) ?>/assets/apple-touch-icon.png" alt="" width="64" height="64"><img class="pb-wordmark-img" src="<?= pb_e(PB_BASE_PATH) ?>/assets/logo-wordmark.svg" alt="PostBase" height="48"></div>
+    <div class="pb-logo pb-logo-lg" role="img" aria-label="JotKite"><img src="<?= pb_e(PB_BASE_PATH) ?>/assets/jk-icon.svg" alt="" width="64" height="64"><span class="pb-wordmark" aria-hidden="true">Jot<b>Kite</b></span></div>
     <p class="pb-tagline">Write anywhere, post here.</p>
     <div class="pb-card">
       <h1 class="pb-h2"><?= pb_e($heading) ?></h1>

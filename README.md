@@ -1,12 +1,14 @@
 <p align="center">
-  <a href="https://postbase.top"><img src="assets/logo.png" width="96" alt=""><br><img src="assets/logo-wordmark.svg" width="360" alt="Unnati PostBase"></a>
+  <a href="https://jotkite.com"><img src="assets/jk-icon.svg" width="96" alt="JotKite logo"></a>
 </p>
+<h1 align="center">JotKite</h1>
+<p align="center"><sub>by <a href="https://unnatidigiservices.in">Unnati Digi Services</a> · formerly <em>PostBase</em></sub></p>
 
 <p align="center"><strong>Write anywhere, post here.</strong><br>
 A fast, mobile-friendly PHP blogging platform with a real editorial workflow: Contributor → Editor → Admin.</p>
 
 <p align="center">
-  <a href="https://postbase.top"><img alt="Website" src="https://img.shields.io/badge/website-postbase.top-1d5cff"></a>
+  <a href="https://jotkite.com"><img alt="Website" src="https://img.shields.io/badge/website-jotkite.com-1f4bff"></a>
   <img alt="PHP 7.4+" src="https://img.shields.io/badge/PHP-7.4%2B-777bb4">
   <img alt="SQLite" src="https://img.shields.io/badge/database-SQLite-003b57">
   <a href="#license"><img alt="License" src="https://img.shields.io/badge/license-AGPL--3.0%20%7C%20Commercial-5c1aef"></a>
@@ -14,9 +16,9 @@ A fast, mobile-friendly PHP blogging platform with a real editorial workflow: Co
 </p>
 
 <p align="center">
-  <a href="https://postbase.top"><b>Website &amp; docs</b></a> ·
+  <a href="https://jotkite.com"><b>Website &amp; docs</b></a> ·
   <a href="#install">Install</a> ·
-  <a href="https://github.com/unnatidigiservices/postbase/issues">Report a bug</a> ·
+  <a href="https://github.com/unnatidigiservices/jotkite/issues">Report a bug</a> ·
   <a href="#project--support">Support</a>
 </p>
 
@@ -24,13 +26,13 @@ A fast, mobile-friendly PHP blogging platform with a real editorial workflow: Co
 
 Drop the folder into `/blog/` on any PHP host, or onto a domain of its own, open `/admin/` and start writing. There's no Composer, no npm, no MySQL and no framework, just a few PHP files and one SQLite database. Pages are small, load fast and are built for phones first.
 
-## Why PostBase exists
+## Why JotKite exists
 
-[Unnati Digi Services](https://unnatidigiservices.in) built PostBase for its **[GeoRank](https://georank.co.in)** clients: local businesses whose sites needed a blog that loads fast on mobile, looks like the rest of the site, and never lets an unreviewed post go live. On a GeoRank site it installs in one click, uses the site's own header, footer, menu and theme, and signs GeoRank users in automatically.
+[Unnati Digi Services](https://unnatidigiservices.in) built JotKite for its **[GeoRank](https://georank.co.in)** clients: local businesses whose sites needed a blog that loads fast on mobile, looks like the rest of the site, and never lets an unreviewed post go live. On a GeoRank site it installs in one click, uses the site's own header, footer, menu and theme, and signs GeoRank users in automatically.
 
-PostBase is also available as a **free add-on for [Unnati LiteCommerce](https://litecommerce.co.in) sites**, styled to match your brand.
+JotKite is also available as a **free add-on for [Unnati LiteCommerce](https://litecommerce.co.in) sites**, styled to match your brand.
 
-Nothing in it depends on GeoRank, though. It runs just as well beside any PHP website or as a standalone blog, so it's open source for everyone. Project information, guides and support live at **[postbase.top](https://postbase.top)**, which runs on PostBase itself.
+Nothing in it depends on GeoRank, though. It runs just as well beside any PHP website or as a standalone blog, so it's open source for everyone. Project information, guides and support live at **[jotkite.com](https://jotkite.com)**, which runs on JotKite itself.
 
 ## Features
 
@@ -71,7 +73,7 @@ Nothing in it depends on GeoRank, though. It runs just as well beside any PHP we
 - 🧩 **Themes and plugins.**
   - Settings → Addons activates themes and plugins and gives each a settings form.
   - Build your own with a folder and an `addon.json`; see [docs/ADDONS.md](docs/ADDONS.md).
-  - The first official addon is **PostBase M1** ("Mobile One"): one layout for every device, with a 720px column, a 640px reading width, and a thumb-friendly header of three 100px blocks (logo, action, menu). You pick the header, container, footer and outside colours.
+  - The first official addon is **JotKite M1** ("Mobile One"): one layout for every device, with a 720px column, a 640px reading width, and a thumb-friendly header of three 100px blocks (logo, action, menu). You pick the header, container, footer and outside colours.
 - 🎨 **Your design.** It follows the site's theme automatically. Settings → Design adds fonts, colours, a favicon and a default share image, and Settings → Navigation edits the menu.
 - 🔐 **Secure by default.**
   - Every post body passes a server-side HTML allowlist sanitizer.
@@ -83,7 +85,7 @@ Nothing in it depends on GeoRank, though. It runs just as well beside any PHP we
 
 - PHP 7.4 or newer (8.x recommended) with `pdo_sqlite`, which is enabled by default on almost every host
 - Optional: `gd` (image resizing), `mbstring`, `intl`/`iconv` (nicer slugs)
-- Apache with `mod_rewrite` for clean URLs. Without it, PostBase falls back to `?p=slug` URLs. See [Nginx](#nginx) below.
+- Apache with `mod_rewrite` for clean URLs. Without it, JotKite falls back to `?p=slug` URLs. See [Nginx](#nginx) below.
 
 ## Install
 
@@ -93,7 +95,7 @@ Nothing in it depends on GeoRank, though. It runs just as well beside any PHP we
    ```
    public_html/
    ├── index.html        ← your site
-   └── blog/             ← PostBase
+   └── blog/             ← JotKite
    ```
 2. Make sure `blog/data/` and `blog/uploads/` are writable by PHP (usually they already are).
 3. Visit `https://your-site.com/blog/admin/` and create the first admin account. (Optional: set `setup_key` in `config.php` first.)
@@ -115,13 +117,13 @@ Replace every file except `config.php`, `data/` and `uploads/`. Database upgrade
 
 ### Public demo site
 
-To run a "try it" site that anyone can play with, install PostBase on its own (sub)domain and add this to `config.php`:
+To run a "try it" site that anyone can play with, install JotKite on its own (sub)domain and add this to `config.php`:
 
 ```php
 return ['demo' => true, 'demo_reset_minutes' => 60, 'demo_key' => 'a-long-secret'];
 ```
 
-- **First visit:** PostBase creates demo accounts and sample posts.
+- **First visit:** JotKite creates demo accounts and sample posts.
 - **Sign-in:** visitors enter with one click as Admin, Editor or Contributor.
 - **Reset:** every 60 minutes the database and images go back to the starting point.
 - **Locked for visitors:** custom header/footer code, robots.txt, and the demo accounts' passwords, emails and roles. Public pages are `noindex`.
@@ -132,7 +134,7 @@ Never turn this on for a real blog.
 ## Nginx
 
 ```nginx
-# PostBase in /blog/ (for a whole-domain install, drop the /blog prefix)
+# JotKite in /blog/ (for a whole-domain install, drop the /blog prefix)
 location /blog/ {
     try_files $uri $uri/ /blog/index.php?$args;
 }
@@ -152,28 +154,28 @@ We compared plain text files, JSON and SQLite for a multi-author workflow. See [
 - Comments (opt-in, moderated)
 - MySQL driver for large installs
 
-Have an idea? [Open an issue](https://github.com/unnatidigiservices/postbase/issues). Pull requests are welcome; please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
+Have an idea? [Open an issue](https://github.com/unnatidigiservices/jotkite/issues). Pull requests are welcome; please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
 
 ## Project & support
 
 | You want to… | Go to |
 |---|---|
-| Read guides, see a live demo, get help | **[postbase.top](https://postbase.top)** |
-| Report a bug or request a feature | [GitHub Issues](https://github.com/unnatidigiservices/postbase/issues) |
+| Read guides, see a live demo, get help | **[jotkite.com](https://jotkite.com)** |
+| Report a bug or request a feature | [GitHub Issues](https://github.com/unnatidigiservices/jotkite/issues) |
 | Report a security vulnerability (privately) | See [SECURITY.md](SECURITY.md) |
-| Buy a commercial license or priority support | [postbase.top](https://postbase.top) · [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) |
+| Buy a commercial license or priority support | [jotkite.com](https://jotkite.com) · [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) |
 | Build a theme or plugin | [docs/ADDONS.md](docs/ADDONS.md) |
 | Get a fast local-business website with the blog built in | [GeoRank](https://georank.co.in) |
 | Add a blog to your online store | [Unnati LiteCommerce](https://litecommerce.co.in) |
 
-PostBase is developed and maintained by **[Unnati Digi Services](https://unnatidigiservices.in)**.
+JotKite is developed and maintained by **[Unnati Digi Services](https://unnatidigiservices.in)**.
 
 ## License
 
-PostBase is **dual-licensed**:
+JotKite is **dual-licensed**:
 
 - **[GNU AGPL-3.0-or-later](LICENSE):** free for everyone, including commercial websites, as long as you comply with the AGPL. That means sharing the source of any modified version you run for other people over a network.
-- **[Commercial license](COMMERCIAL-LICENSE.md):** for sites, SaaS platforms and hosts that want to modify, white-label or bundle PostBase **without** AGPL obligations:
+- **[Commercial license](COMMERCIAL-LICENSE.md):** for sites, SaaS platforms and hosts that want to modify, white-label or bundle JotKite **without** AGPL obligations:
 
   | License | Price |
   |---|---|
@@ -187,4 +189,4 @@ PostBase is **dual-licensed**:
 
 See [NOTICE](NOTICE) for the copyright and licensing statement.
 
-© 2026 Unnati Digi Services. "Unnati PostBase", "GeoRank" and their logos are names of Unnati Digi Services. The AGPL covers the code, not the right to present a modified version under those names.
+© 2026 Unnati Digi Services. "JotKite", "GeoRank" and their logos are names of Unnati Digi Services. The AGPL covers the code, not the right to present a modified version under those names.

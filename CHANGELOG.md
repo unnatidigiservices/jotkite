@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.21.0 — 2026-09-28 · JotKite
+
+**PostBase is now JotKite.** Same software, new name, to avoid confusion with other products called PostBase.
+
+- New home: **[jotkite.com](https://jotkite.com)**. Code: **[github.com/unnatidigiservices/jotkite](https://github.com/unnatidigiservices/jotkite)**; the old GitHub address redirects there.
+- **New logo:** a long pen nib shaped like a kite, white on the brand gradient tile. It's used in the admin sidebar, on the sign-in page, as the favicon (SVG with a PNG fallback) and as the home-screen app icons.
+  - The "Jot**Kite**" wordmark is text, so it stays sharp at any size, with a dark-mode version.
+- The new name appears everywhere people see it: page titles, the sign-in page, the upgrade notice, the admin footer, the app manifest, "Powered by" credits, the `generator` meta tag, RSS, the demo, the README and the docs.
+- **Existing sites:** Admins see a one-time **"PostBase is now JotKite"** notice after updating. Posts, images and settings are untouched.
+- **Unchanged on purpose:** the internal `pb_` / `PB_` names, the addon hooks and the database file `data/postbase.sqlite` keep the original codename, so every addon and existing install keeps working. See CONTRIBUTING.md.
+- The M1 theme is now called *JotKite M1*, and its gradient option *JotKite gradient*.
+- The admin page title now has the missing space ("Posts · Blog").
+
 ## 0.20.1 — 2026-09-27
 
 - **Fixed: on some GeoRank sites the blog redirected to the homepage.** GeoRank's include files send direct visitors to `/` unless `GEORANK_INCLUDE` is defined. Newer sites have that guard in `meta-global.html` too, and PostBase defined the constant only after including that file, so every blog page redirected home. The admin, RSS and sitemap were not affected. The constant is now defined before the first include.
