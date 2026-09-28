@@ -138,7 +138,8 @@ Never turn this on for a real blog.
 location /blog/ {
     try_files $uri $uri/ /blog/index.php?$args;
 }
-location ~ ^/blog/(data|lib|tools|docs)/ { deny all; }
+location ~ ^/blog/(data|lib)/ { deny all; }
+location ~ ^/blog/(docs|tools)/.+\.(md|php)$ { deny all; }   # /blog/docs/ itself stays free for a page
 location ~ ^/blog/uploads/.*\.(php|phtml|html?)$ { deny all; }
 ```
 

@@ -879,7 +879,10 @@ if ($view === 'edit') {
     $s = function ($k) { return pb_setting($k); };
     $stabs = ['general' => 'General', 'design' => 'Design', 'navigation' => 'Navigation', 'code' => 'Code', 'addons' => 'Addons'] + (pb_demo_on() ? ['demo' => 'Demo'] : []);
     $stab = isset($stabs[$_GET['tab'] ?? '']) ? $_GET['tab'] : 'general';
-    $isGr = pb_is_georank_site(); ?>
+    $isGr = pb_is_georank_site();
+    // GeoRank options only where they mean something: on a GeoRank site, or while a
+    // GeoRank login is in use. A plain install (e.g. from GitHub) never sees them.
+    $showGr = $isGr || pb_georank_session_role() !== null || pb_setting('layout') === 'georank'; ?>
 <div class="pb-tabs">
   <?php foreach ($stabs as $k => $label): ?>
     <a href="<?= pb_e(pb_admin_url('view=settings&tab=' . $k)) ?>" class="<?= $k === $stab ? 'active' : '' ?>"><?= pb_e($label) ?></a>
@@ -1078,7 +1081,9 @@ if ($view === 'edit') {
         <?php foreach ($quick as $label => $url): ?><option value="<?= pb_e($url) ?>" data-label="<?= pb_e(preg_replace('/^Category: /', '', $label)) ?>"><?= pb_e($label) ?></option><?php endforeach; ?>
       </select>
     </div>
-    <label class="pb-check"><input type="checkbox" name="nav_show_georank" value="1"<?= $s('nav_show_georank') === '1' ? ' checked' : '' ?>> Also show this menu on GeoRank sites, as a slim bar under the site header</label>
+    <?php if ($showGr): ?>
+    <label class="pb-check"><input type="checkbox" name="nav_show_georank" value="1"<?= $s('nav_show_georank') === '1' ? ' checked' : '' ?>> Also show this menu on the GeoRank site design, as a slim bar under the site header</label>
+    <?php elseif ($s('nav_show_georank') === '1'): ?><input type="hidden" name="nav_show_georank" value="1"><?php endif; ?>
     <p class="pb-small pb-muted"><?= $isGr ? 'On this GeoRank site the main menu comes from GeoRank → Design → Menu. This list is used for the blog\'s own bar (if ticked) and the standalone layout.' : 'Shown in the blog header.' ?></p>
     <div class="pb-row">
       <button class="pb-btn pb-btn-primary">Save navigation</button>
@@ -1126,20 +1131,28 @@ if ($view === 'edit') {
     </select>
     <span class="pb-small pb-muted">Real photos with their location and date are a genuine signal for search engines, especially for local businesses. Remove them only if photos are taken somewhere private, such as your home. Applies to new uploads.</span></label>
 
-    <h3 class="pb-h3">Layout &amp; URLs</h3>
+    <h3 class="pb-h3"><?= $showGr ? 'Layout &amp; URLs' : 'URLs' ?></h3>
+    <?php if ($showGr): ?>
     <label>Layout<select name="layout">
       <option value="auto"<?= $s('layout') === 'auto' ? ' selected' : '' ?>>Automatic (use the GeoRank site design when found)</option>
       <option value="georank"<?= $s('layout') === 'georank' ? ' selected' : '' ?>>GeoRank site header, footer and theme</option>
       <option value="standalone"<?= $s('layout') === 'standalone' ? ' selected' : '' ?>>JotKite theme (choose it in Settings → Addons)</option>
     </select></label>
+    <?php else: /* not a GeoRank site: the theme is chosen in Settings → Addons; keep the stored value */ ?>
+    <input type="hidden" name="layout" value="<?= pb_e($s('layout')) ?>">
+    <?php endif; ?>
     <label class="pb-check"><input type="checkbox" name="pretty_urls" value="1"<?= $s('pretty_urls') === '1' ? ' checked' : '' ?>> Clean URLs (<code><?= pb_e(PB_BASE_PATH) ?>/my-post/</code>) — needs Apache mod_rewrite</label>
     <label>Site URL <span class="pb-muted pb-small">(optional, e.g. https://example.com — used for canonical links, RSS and sitemap)</span><input name="site_url" value="<?= pb_e($s('site_url')) ?>" placeholder="<?= pb_e(pb_origin()) ?>"></label>
 
+    <?php if ($showGr): ?>
     <h3 class="pb-h3">GeoRank sign-in</h3>
     <label class="pb-check"><input type="checkbox" name="georank_sso" value="1"<?= $s('georank_sso') === '1' ? ' checked' : '' ?>> Let people signed in to GeoRank use the blog without a separate login</label>
     <label>GeoRank Editors become<select name="georank_editor_role">
       <?php foreach (PB_ROLES as $r): ?><option value="<?= $r ?>"<?= $s('georank_editor_role') === $r ? ' selected' : '' ?>><?= pb_role_label($r) ?></option><?php endforeach; ?>
     </select></label>
+    <?php else: ?>
+    <input type="hidden" name="georank_sso" value="<?= $s('georank_sso') === '1' ? '1' : '' ?>"><input type="hidden" name="georank_editor_role" value="<?= pb_e($s('georank_editor_role')) ?>">
+    <?php endif; ?>
     <button class="pb-btn pb-btn-primary">Save settings</button>
   </form>
   <div>
@@ -1150,12 +1163,12 @@ if ($view === 'edit') {
       <p class="pb-small">Sitemap: <a href="<?= pb_e(pb_url('sitemap')) ?>" target="_blank"><?= pb_e(pb_abs_url(pb_url('sitemap'))) ?></a></p>
       <form method="post"><?= pb_csrf_field() ?><input type="hidden" name="do" value="robots_sitemap">
         <button class="pb-btn pb-btn-sm">Add blog sitemap to robots.txt</button></form>
-      <p class="pb-small pb-muted">Tip: add a "Blog" link pointing to <code><?= pb_e(PB_BASE_PATH) ?>/</code> in GeoRank → Design → Menu, and submit the sitemap in Google Search Console.</p>
+      <p class="pb-small pb-muted">Tip: <?= $isGr ? 'add a "Blog" link pointing to <code>' . pb_e(PB_BASE_PATH) . '/</code> in GeoRank → Design → Menu, and submit' : (PB_BASE_PATH !== '' ? 'link to <code>' . pb_e(PB_BASE_PATH) . '/</code> from your website\'s menu, and submit' : 'submit') ?> the sitemap in Google Search Console.</p>
     </div>
     <div class="pb-card">
       <h3 class="pb-h3">System</h3>
       <p class="pb-small">JotKite <?= pb_e(PB_VERSION) ?> · PHP <?= pb_e(PHP_VERSION) ?> · SQLite <?= pb_e($sqliteVer) ?></p>
-      <p class="pb-small">GeoRank site: <?= $isGr ? '<strong>detected</strong> — using its header, footer and theme' : 'not detected' ?></p>
+      <?php if ($isGr): ?><p class="pb-small">GeoRank site: <strong>detected</strong>, using its header, footer and theme</p><?php endif; ?>
       <p class="pb-small">Image resizing: <?= function_exists('imagecreatetruecolor') ? 'on (GD)' : 'off — GD extension missing' ?></p>
       <p class="pb-small pb-muted">Back up <code>data/postbase.sqlite</code> and the <code>uploads/</code> folder to back up the whole blog.</p>
       <p class="pb-small">Help, guides and support: <a href="<?= PB_HOMEPAGE ?>" target="_blank" rel="noopener">jotkite.com</a> · Report a bug: <a href="<?= PB_REPO_URL ?>/issues" target="_blank" rel="noopener">GitHub Issues</a></p>

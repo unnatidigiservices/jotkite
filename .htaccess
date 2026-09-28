@@ -8,8 +8,13 @@ DirectoryIndex index.php
   # the folder JotKite lives in (with slashes), e.g. /blog/
   # RewriteBase /blog/
 
-  # Never serve internals or docs directly.
-  RewriteRule ^(data|lib|tools|docs|dist)(/|$) - [F,L]
+  # Never serve internals directly.
+  RewriteRule ^(data|lib|dist)(/|$) - [F,L]
+  # The repository's docs/ and tools/ files are never served either, but the
+  # names stay free for your own pages, e.g. /docs/ or /tools/.
+  RewriteCond %{REQUEST_FILENAME} -f
+  RewriteRule ^(docs|tools)/ - [F,L]
+  RewriteRule ^(docs|tools)/?$ index.php?route=$1 [QSA,L]
   # Addon code and manifests are never served directly (their CSS/JS/images are).
   RewriteRule ^addons/.+\.(php|json|md)$ - [F,L]
   RewriteRule ^(config(\.sample)?\.php|[^/]+\.md|\.git.*)$ - [F,L]

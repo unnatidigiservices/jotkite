@@ -10,7 +10,7 @@
  */
 if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 
-define('PB_VERSION', '0.21.0');
+define('PB_VERSION', '0.21.1');
 define('PB_HOMEPAGE', 'https://jotkite.com');                             // project info, docs and support
 define('PB_REPO_URL', 'https://github.com/unnatidigiservices/jotkite');    // source code and issues
 define('PB_SCHEMA_VERSION', 4);
@@ -22,7 +22,9 @@ define('PB_SITE_DIR', PB_BASE_PATH === '' ? PB_ROOT : dirname(PB_ROOT, substr_co
 define('PB_SESSION_LIFETIME', 12 * 60 * 60); // matches GeoRank so a shared session is never cut short
 define('PB_ROLES', ['contributor', 'editor', 'admin']);
 define('PB_STATUSES', ['draft', 'pending', 'changes_requested', 'published', 'archived']);
-define('PB_RESERVED_SLUGS', ['admin', 'assets', 'data', 'lib', 'uploads', 'tools', 'docs', 'page', 'category', 'feed', 'feed.xml', 'sitemap.xml', 'robots.txt', 'search', 'index.php', 'posts', 'addons']);
+// URL names used by JotKite itself. "docs" and "tools" (repository folders) are
+// deliberately not here: their files are blocked, their names are free for pages.
+define('PB_RESERVED_SLUGS', ['admin', 'assets', 'data', 'lib', 'uploads', 'page', 'category', 'feed', 'feed.xml', 'sitemap.xml', 'robots.txt', 'search', 'index.php', 'posts', 'addons']);
 
 // ----------------------------------------------------------------------------
 // CONFIG — optional config.php (see config.sample.php) overrides these.
@@ -175,8 +177,13 @@ function pb_root_htaccess() {
          . "  # the folder JotKite lives in (with slashes), e.g. /blog/\n"
          . "  # RewriteBase /blog/\n"
          . "\n"
-         . "  # Never serve internals or docs directly.\n"
-         . "  RewriteRule ^(data|lib|tools|docs|dist)(/|$) - [F,L]\n"
+         . "  # Never serve internals directly.\n"
+         . "  RewriteRule ^(data|lib|dist)(/|$) - [F,L]\n"
+         . "  # The repository's docs/ and tools/ files are never served either, but the\n"
+         . "  # names stay free for your own pages, e.g. /docs/ or /tools/.\n"
+         . "  RewriteCond %{REQUEST_FILENAME} -f\n"
+         . "  RewriteRule ^(docs|tools)/ - [F,L]\n"
+         . "  RewriteRule ^(docs|tools)/?$ index.php?route=$1 [QSA,L]\n"
          . "  # Addon code and manifests are never served directly (their CSS/JS/images are).\n"
          . "  RewriteRule ^addons/.+\\.(php|json|md)$ - [F,L]\n"
          . "  RewriteRule ^(config(\\.sample)?\\.php|[^/]+\\.md|\\.git.*)$ - [F,L]\n"
@@ -187,10 +194,23 @@ function pb_root_htaccess() {
          . "  RewriteRule ^(.*)$ index.php?route=$1 [QSA,L]\n"
          . "</IfModule>\n";
 }
+// Earlier generated versions of the main .htaccess (0.20.0 as PostBase, 0.21.0 as
+// JotKite). A file still byte-identical to one of them was written by JotKite and
+// never edited, so it is safe to bring up to date. Anything else is left alone.
+function pb_root_htaccess_is_old($raw) {
+    $cur = pb_root_htaccess();
+    $oldRules = "  # Never serve internals or docs directly.\n  RewriteRule ^(data|lib|tools|docs|dist)(/|$) - [F,L]\n";
+    $newRules = substr($cur, $a = strpos($cur, "  # Never serve internals directly.\n"), strpos($cur, "  # Addon code") - $a);
+    $v021 = str_replace($newRules, $oldRules, $cur);
+    $v020 = str_replace("# JotKite\n", "# Unnati PostBase\n", str_replace('the folder JotKite lives in', 'the folder PostBase lives in', $v021));
+    return $raw === $v021 || $raw === $v020;
+}
 function pb_ensure_protection() {
     static $done = false;
     if ($done) return;
     $done = true;
+    $main = PB_ROOT . '/.htaccess';
+    if (is_file($main) && pb_root_htaccess_is_old((string) @file_get_contents($main))) @file_put_contents($main, pb_root_htaccess());
     $deny = "<IfModule mod_authz_core.c>\n  Require all denied\n</IfModule>\n<IfModule !mod_authz_core.c>\n  Order allow,deny\n  Deny from all\n</IfModule>\n";
     $files = [
         // The main one (clean URLs, blocked internals). Releases don't ship it at all:

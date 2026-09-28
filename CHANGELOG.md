@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.21.1 — 2026-09-29
+
+- **`/docs/` and `/tools/` can be page addresses.** They were blocked, because the repository has folders with those names, and a page saved as "docs" was renamed "docs-1".
+  - Now only the files inside those folders are blocked. The names are free for your own pages.
+  - An untouched `.htaccess` that JotKite wrote itself (0.20–0.21.0) is updated automatically. An edited one is never changed; copy the new rules from the repository's `.htaccess`.
+  - Nginx users: see the updated rules in the README.
+- **No GeoRank wording on plain installs.** Settings → General and → Navigation only show the GeoRank options (layout, GeoRank sign-in, the slim menu bar, "GeoRank site detected") on a GeoRank site. Elsewhere they're hidden, and their saved values are kept.
+
 ## 0.21.0 — 2026-09-28 · JotKite
 
 **PostBase is now JotKite.** Same software, new name, to avoid confusion with other products called PostBase.
