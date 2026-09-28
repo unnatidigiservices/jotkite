@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.22.0 — 2026-09-29
+
+- **"Put JotKite on your home screen."** On phones, the admin shows a small banner until it's dismissed, and never inside the installed app.
+  - **Android (Chrome, Edge, Samsung):** a real one-tap **Install** button.
+  - **iPhone:** Apple doesn't let web pages install themselves, so the banner shows the Safari steps with the Share icon.
+  - My account always has a **JotKite on your phone** card with the steps (and the Install button where possible).
+  - A minimal service worker makes the admin installable in Chrome. It caches nothing: pages always come from the network, and only a failed page load shows a small "You're offline" page.
+- **Text alignment in the editor:** align left, centre and right buttons after Quote. The active alignment is highlighted.
+  - Alignment is the only styling kept from a `style` attribute: centre or right, on paragraphs, headings, list items, quotes and table cells. Everything else is still stripped.
+
 ## 0.21.1 — 2026-09-29
 
 - **`/docs/` and `/tools/` can be page addresses.** They were blocked, because the repository has folders with those names, and a page saved as "docs" was renamed "docs-1".

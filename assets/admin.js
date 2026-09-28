@@ -42,6 +42,43 @@
     update();
   });
 
+  // ---- "Put JotKite on your home screen" ----
+  // Android/Chrome can install with one tap (beforeinstallprompt); iPhone can't be
+  // prompted by a web page, so it gets the Safari steps instead. Shown on phones
+  // only, never inside the installed app, and not again once dismissed.
+  if ('serviceWorker' in navigator && PB.adminUrl && (location.protocol === 'https:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname))) {
+    navigator.serviceWorker.register(PB.adminUrl + '?sw=1', { scope: PB.adminUrl }).catch(() => { /* optional */ });
+  }
+  const store = { get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } } };
+  const inApp = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+  const ua = navigator.userAgent;
+  const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isPhone = isIOS || /Android|Mobi/i.test(ua);
+  const installBox = $('#pbInstall');
+  let installEvent = null;
+  const hideInstall = (remember) => { if (installBox) installBox.hidden = true; if (remember) store.set('pb_install_dismissed', '1'); };
+  if (installBox && isPhone && !inApp && store.get('pb_install_dismissed') !== '1') {
+    if (isIOS) {
+      $('[data-install-how]', installBox).innerHTML = 'Tap <span class="pb-share-ico" aria-label="Share"></span> <b>Share</b> in Safari, then <b>Add to Home Screen</b>. It opens straight on Write.';
+    }
+    installBox.hidden = false;
+    $('#pbInstallClose').addEventListener('click', () => hideInstall(true));
+  }
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault(); // we show our own button instead of the browser's mini bar
+    installEvent = e;
+    $all('[data-install-btn]').forEach((b) => { b.hidden = false; });
+    if (installBox && !installBox.hidden) $('[data-install-how]', installBox).textContent = 'One tap. It opens straight on Write and stays signed in.';
+  });
+  $all('[data-install-btn]').forEach((b) => b.addEventListener('click', () => {
+    if (!installEvent) return;
+    installEvent.prompt();
+    installEvent.userChoice.then((c) => { if (c.outcome === 'accepted') hideInstall(true); }).catch(() => {});
+    installEvent = null;
+    $all('[data-install-btn]').forEach((x) => { x.hidden = true; });
+  }));
+  window.addEventListener('appinstalled', () => hideInstall(true));
+
   // Character counters for SEO fields.
   $all('.pb-count').forEach((c) => {
     const f = document.getElementById(c.dataset.for);
@@ -595,6 +632,13 @@
   toolbar.addEventListener('mousedown', (e) => { if (e.target.closest('button')) e.preventDefault(); }); // keep the selection
   editor.addEventListener('keyup', saveSelection);
   editor.addEventListener('mouseup', saveSelection);
+  // Light up the alignment of the paragraph the cursor is in.
+  const alignBtns = $all('[data-cmd^="justify"]', toolbar);
+  document.addEventListener('selectionchange', () => {
+    const sel = window.getSelection();
+    if (!sel.rangeCount || !editor.contains(sel.anchorNode)) return;
+    alignBtns.forEach((b) => { let on = false; try { on = document.queryCommandState(b.dataset.cmd); } catch (err) { /* unsupported */ } b.classList.toggle('on', on); });
+  });
   toolbar.addEventListener('click', (e) => {
     const b = e.target.closest('button[data-cmd]');
     if (!b) return;

@@ -37,6 +37,26 @@ if (isset($_GET['manifest'])) {
     exit;
 }
 
+// Service worker for the home-screen app. Chrome only offers one-tap "Install"
+// when the app has one. It caches nothing: every request goes to the network,
+// and only a page load that fails (no signal) gets a small offline page.
+if (isset($_GET['sw'])) {
+    header('Content-Type: application/javascript; charset=utf-8');
+    header('Cache-Control: no-cache');
+    $offline = '<!DOCTYPE html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Offline · JotKite</title>'
+             . '<div style="font:17px/1.5 system-ui,sans-serif;max-width:420px;margin:80px auto;padding:0 20px;text-align:center">'
+             . '<h1 style="font-size:22px">You\'re offline</h1><p>JotKite needs a connection to load this page. Your saved posts are safe.</p>'
+             . '<p><button onclick="location.reload()" style="font:inherit;padding:10px 18px;border-radius:10px;border:0;background:#1f4bff;color:#fff">Try again</button></p></div>';
+    echo "/* JotKite admin service worker: no caching, offline page only. */\n"
+       . "self.addEventListener('install', () => self.skipWaiting());\n"
+       . "self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));\n"
+       . "self.addEventListener('fetch', (e) => {\n"
+       . "  if (e.request.method !== 'GET' || e.request.mode !== 'navigate') return;\n"
+       . "  e.respondWith(fetch(e.request).catch(() => new Response(" . json_encode($offline) . ", { headers: { 'Content-Type': 'text/html; charset=utf-8' } })));\n"
+       . "});\n";
+    exit;
+}
+
 pb_session_start();
 pb_device_login();
 pb_load_plugins();
@@ -641,6 +661,10 @@ if ($view === 'edit') {
       <button type="button" data-cmd="insertUnorderedList" title="Bullet list">• List</button>
       <button type="button" data-cmd="insertOrderedList" title="Numbered list">1. List</button>
       <button type="button" data-cmd="blockquote" title="Quote">❝</button>
+      <?php $alignIcon = function ($lines) { return '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="currentColor">' . $lines . '</svg>'; }; ?>
+      <button type="button" data-cmd="justifyLeft" title="Align left" aria-label="Align left"><?= $alignIcon('<rect x="1" y="2" width="14" height="2" rx="1"/><rect x="1" y="7" width="9" height="2" rx="1"/><rect x="1" y="12" width="12" height="2" rx="1"/>') ?></button>
+      <button type="button" data-cmd="justifyCenter" title="Centre" aria-label="Centre"><?= $alignIcon('<rect x="1" y="2" width="14" height="2" rx="1"/><rect x="3.5" y="7" width="9" height="2" rx="1"/><rect x="2" y="12" width="12" height="2" rx="1"/>') ?></button>
+      <button type="button" data-cmd="justifyRight" title="Align right" aria-label="Align right"><?= $alignIcon('<rect x="1" y="2" width="14" height="2" rx="1"/><rect x="6" y="7" width="9" height="2" rx="1"/><rect x="3" y="12" width="12" height="2" rx="1"/>') ?></button>
       <span class="pb-tsep"></span>
       <button type="button" data-cmd="video" title="Embed YouTube or Vimeo">▶ Video</button>
       <button type="button" data-cmd="removeFormat" title="Clear formatting">⌫</button>
@@ -1266,6 +1290,13 @@ if ($view === 'edit') {
   <?php endif; ?>
   <button class="pb-btn pb-btn-primary">Save</button>
 </form>
+<div class="pb-card pb-narrow pb-app-card">
+  <h3 class="pb-h3">📲 JotKite on your phone</h3>
+  <p class="pb-small">Add the admin to your phone's home screen: it opens like an app, straight on <strong>Write</strong>, and stays signed in.</p>
+  <p class="pb-small"><button type="button" class="pb-btn pb-btn-primary pb-btn-sm" data-install-btn hidden>Install on this device</button></p>
+  <p class="pb-small"><strong>iPhone / iPad (Safari):</strong> open this page, tap <span class="pb-share-ico" aria-label="Share"></span> <b>Share</b>, then <b>Add to Home Screen</b>. Sign in once inside the new app.</p>
+  <p class="pb-small"><strong>Android (Chrome):</strong> tap the <b>⋮</b> menu, then <b>Install app</b> or <b>Add to Home screen</b>. Samsung Internet: <b>≡</b> → <b>Add page to</b> → <b>Home screen</b>.</p>
+</div>
 <?php if ($user['source'] === 'local'):
     $devices = pb_all('SELECT id, selector, label, created_at, last_used_at FROM devices WHERE user_id = ? AND expires_at > ? ORDER BY last_used_at DESC', [$user['id'], time()]);
     $here = (string) ($_SESSION['pb_device'] ?? ''); ?>
@@ -1411,6 +1442,16 @@ $nav = [
     <div class="pb-demo-bar" role="note">🧪 <strong>Demo</strong> · you're signed in as <?= pb_e(pb_role_label($user['role'])) ?>. Try anything: it all resets in <?= pb_demo_minutes_left() ?> min.
       <?php if (!empty($_SESSION['pb_uid'])): ?><a href="<?= pb_e(pb_admin_url('logout=' . pb_csrf_token())) ?>">Switch role</a><?php endif; ?></div>
     <?php endif; ?>
+    <?php /* Install on phone (admin.js shows it on phones not yet using the app, until dismissed) */ ?>
+    <div class="pb-install" id="pbInstall" hidden role="note">
+      <img src="<?= pb_e(PB_BASE_PATH) ?>/assets/jk-icon.svg" alt="" width="40" height="40">
+      <div><strong>📲 Put JotKite on your home screen</strong>
+        <span class="pb-small" data-install-how>Open your browser's menu (⋮) and choose <b>Install app</b> or <b>Add to Home screen</b>.</span></div>
+      <div class="pb-install-btns">
+        <button type="button" class="pb-btn pb-btn-primary pb-btn-sm" data-install-btn hidden>Install</button>
+        <button type="button" class="pb-btn pb-btn-sm" id="pbInstallClose">Not now</button>
+      </div>
+    </div>
     <?php if (pb_can($user, 'settings.manage') && pb_setting('rename_notice') === '1'): ?>
     <div class="pb-upgrade pb-rename" role="status">
       <div class="pb-upgrade-head">

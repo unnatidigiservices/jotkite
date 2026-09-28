@@ -10,7 +10,7 @@
  */
 if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 
-define('PB_VERSION', '0.21.1');
+define('PB_VERSION', '0.22.0');
 define('PB_HOMEPAGE', 'https://jotkite.com');                             // project info, docs and support
 define('PB_REPO_URL', 'https://github.com/unnatidigiservices/jotkite');    // source code and issues
 define('PB_SCHEMA_VERSION', 4);
@@ -1030,11 +1030,19 @@ function pb_sanitize_children(DOMDocument $doc, DOMNode $node) {
             continue;
         }
 
+        // Text alignment (editor's align buttons, or pasted centred text) is the one bit of
+        // styling kept: centre or right on text blocks, nothing else from a style attribute.
+        $align = '';
+        if (in_array($tag, ['p', 'h2', 'h3', 'h4', 'li', 'blockquote', 'td', 'th'], true)) {
+            if (preg_match('/(?:^|;)\s*text-align\s*:\s*(center|right)\s*(?:;|$)/i', $child->getAttribute('style'), $am)) $align = strtolower($am[1]);
+            elseif (preg_match('/^(center|right)$/i', $child->getAttribute('align'))) $align = strtolower($child->getAttribute('align'));
+        }
         $names = [];
         foreach ($child->attributes as $a) $names[] = $a->nodeName;
         foreach ($names as $name) {
             if (!in_array(strtolower($name), $allowed[$tag], true)) $child->removeAttribute($name);
         }
+        if ($align !== '') $child->setAttribute('style', 'text-align: ' . $align);
         if ($tag === 'a') {
             if ($child->hasAttribute('href') && pb_safe_url($child->getAttribute('href')) === null) $child->removeAttribute('href');
             if ($child->getAttribute('target') === '_blank') {

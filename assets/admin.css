@@ -134,7 +134,15 @@ input[readonly], textarea[readonly] { background: var(--pb-surface-2); }
 .pb-demo-roles .pb-btn small { font-weight: 400; font-size: 12.5px; opacity: .85; }
 .pb-demo-owner-login { margin-bottom: 8px; }
 .pb-demo-owner-login summary { cursor: pointer; margin-bottom: 10px; }
-.pb-upgrade {padding: 12px 14px; border-radius: 12px; margin-bottom: 14px; background: var(--pb-accent-soft); border: 1px solid color-mix(in srgb, var(--pb-accent) 30%, transparent); }
+/* "Put JotKite on your home screen" (phones) */
+.pb-install { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; margin-bottom: 14px; border-radius: 12px; background: var(--pb-surface); border: 1px solid color-mix(in srgb, var(--pb-accent) 30%, transparent); box-shadow: var(--pb-shadow); }
+.pb-install[hidden] { display: none; }
+.pb-install img { border-radius: 10px; flex: none; }
+.pb-install > div:first-of-type { flex: 1 1 200px; display: flex; flex-direction: column; gap: 2px; }
+.pb-install-btns { display: flex; gap: 8px; }
+/* The iOS Share icon (square with an arrow), drawn inline so the steps are easy to follow */
+.pb-share-ico { display: inline-block; width: 14px; height: 16px; vertical-align: -2px; background: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 16' fill='none' stroke='%231f4bff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 10V1.5M4 4.3 7 1.3l3 3'/%3E%3Cpath d='M4.5 7H2.5v7.5h9V7h-2'/%3E%3C/svg%3E"); }
+.pb-upgrade { padding: 12px 14px; border-radius: 12px; margin-bottom: 14px; background: var(--pb-accent-soft); border: 1px solid color-mix(in srgb, var(--pb-accent) 30%, transparent); }
 .pb-upgrade-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .pb-upgrade-head > div { flex: 1 1 220px; display: flex; flex-direction: column; gap: 1px; }
 .pb-upgrade-icon { font-size: 20px; }
@@ -185,6 +193,7 @@ input[readonly], textarea[readonly] { background: var(--pb-surface-2); }
 .pb-title-input:focus { outline: none; border-bottom-color: var(--pb-accent); }
 .pb-toolbar { display: flex; flex-wrap: wrap; gap: 2px; padding: 8px 0; border-bottom: 1px solid var(--pb-border); position: sticky; top: 0; background: var(--pb-surface); z-index: 2; }
 .pb-toolbar button { border: 0; background: transparent; color: var(--pb-muted); font: inherit; font-size: 14px; padding: 6px 9px; border-radius: 7px; cursor: pointer; }
+.pb-toolbar button svg { display: block; }
 .pb-toolbar button:hover, .pb-toolbar button.on { background: var(--pb-accent-soft); color: var(--pb-accent); }
 .pb-tsep { width: 1px; background: var(--pb-border); margin: 4px 6px; }
 .pb-tright { margin-left: auto; }
