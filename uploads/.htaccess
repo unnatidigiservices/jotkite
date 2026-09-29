@@ -15,4 +15,5 @@ Options -Indexes -ExecCGI
 </IfModule>
 <IfModule mod_headers.c>
   Header set X-Content-Type-Options "nosniff"
+  Header set Cache-Control "public, max-age=31536000, immutable"
 </IfModule>

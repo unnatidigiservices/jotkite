@@ -178,10 +178,10 @@ if ($view === 'post') {
   <article class="pb-article pb-static">
     <header class="pb-article-head"><h1><?= pb_e($post['title']) ?></h1></header>
 <?php if ($img !== ''): ?>
-    <figure class="pb-cover"><img src="<?= pb_e($img) ?>" alt="<?= pb_e($post['cover_alt']) ?>" fetchpriority="high"></figure>
+    <figure class="pb-cover"><img src="<?= pb_e($img) ?>" alt="<?= pb_e($post['cover_alt'] !== '' ? $post['cover_alt'] : $post['title']) ?>"<?= pb_img_dims($img) ?> fetchpriority="high"></figure>
 <?php endif; ?>
     <div class="pb-content">
-<?= pb_apply_filters('pb_post_content', $post['body'], $post) /* sanitized on save; plugins may add to it */ ?>
+<?= pb_apply_filters('pb_post_content', pb_add_img_dims($post['body']), $post) /* sanitized on save; plugins may add to it */ ?>
     </div>
   </article>
 </div>
@@ -229,10 +229,10 @@ if ($view === 'post') {
         <?= pb_reading_minutes($post['body']) ?> min read</p>
     </header>
 <?php if ($img !== ''): ?>
-    <figure class="pb-cover"><img src="<?= pb_e($img) ?>" alt="<?= pb_e($post['cover_alt']) ?>" fetchpriority="high"></figure>
+    <figure class="pb-cover"><img src="<?= pb_e($img) ?>" alt="<?= pb_e($post['cover_alt'] !== '' ? $post['cover_alt'] : $post['title']) ?>"<?= pb_img_dims($img) ?> fetchpriority="high"></figure>
 <?php endif; ?>
     <div class="pb-content">
-<?= pb_apply_filters('pb_post_content', $post['body'], $post) /* sanitized on save; plugins may add to it */ ?>
+<?= pb_apply_filters('pb_post_content', pb_add_img_dims($post['body']), $post) /* sanitized on save; plugins may add to it */ ?>
     </div>
   </article>
 <?php if ($prev || $next): ?>

@@ -140,7 +140,7 @@ function pb_render_page(array $meta, $content) {
         echo "<!DOCTYPE html>\n<html lang=\"" . pb_e($lang) . "\">\n<head>\n" . $head;
         if (is_file(PB_SITE_DIR . '/meta-global.html')) include PB_SITE_DIR . '/meta-global.html';
         echo "\n" . $assets['head'];
-        echo '<link rel="stylesheet" href="' . pb_e($blogCss) . '">' . "\n" . $tail;
+        echo pb_css_tag(PB_ROOT . '/assets/blog.css', $blogCss) . $tail;
         echo "</head>\n<body class=\"pb-page pb-georank\">\n";
         include PB_SITE_DIR . '/header.html';
         $subnav = pb_setting('nav_show_georank') === '1' ? '<div class="pb-subnav-bar"><div class="pb-wrap">' . pb_nav_html('pb-subnav') . "</div></div>\n" : '';
@@ -153,10 +153,10 @@ function pb_render_page(array $meta, $content) {
     // Active theme addon (Settings → Addons). Any failure falls back to the built-in layout below.
     $theme = pb_active_theme();
     if ($theme) {
-        $themeHead = $head . '<link rel="stylesheet" href="' . pb_e($blogCss) . '">' . "\n";
+        $themeHead = $head . pb_css_tag(PB_ROOT . '/assets/blog.css', $blogCss);
         foreach (['theme.css'] as $f) {
             if (is_file($theme['dir'] . '/' . $f)) {
-                $themeHead .= '<link rel="stylesheet" href="' . pb_e($theme['url'] . '/' . $f . '?v=' . $theme['version']) . '">' . "\n";
+                $themeHead .= pb_css_tag($theme['dir'] . '/' . $f, $theme['url'] . '/' . $f . '?v=' . $theme['version']);
             }
         }
         $page = [
@@ -181,7 +181,7 @@ function pb_render_page(array $meta, $content) {
     }
 
     echo "<!DOCTYPE html>\n<html lang=\"" . pb_e($lang) . "\">\n<head>\n" . $head
-       . '<link rel="stylesheet" href="' . pb_e($blogCss) . '">' . "\n" . $tail
+       . pb_css_tag(PB_ROOT . '/assets/blog.css', $blogCss) . $tail
        . "</head>\n<body class=\"pb-page pb-standalone\">\n"
        . '<header class="pb-topbar"><div class="pb-wrap pb-topbar-inner">'
        . '<a class="pb-brand" href="' . pb_e(pb_url()) . '">'
@@ -194,6 +194,41 @@ function pb_render_page(array $meta, $content) {
        . $bodyEnd . "</body>\n</html>\n";
 }
 
+// A small stylesheet goes straight into the page: no extra request blocking the
+// first paint (PageSpeed "render-blocking requests"). Big ones stay linked.
+function pb_css_tag($file, $url) {
+    if (is_file($file) && filesize($file) <= 24576) {
+        $css = (string) file_get_contents($file);
+        return '<style>' . str_replace('</style', '<\/style', $css) . '</style>' . "\n";
+    }
+    return '<link rel="stylesheet" href="' . pb_e($url) . '">' . "\n";
+}
+// ' width="…" height="…"' for an image in this blog's uploads/, so the browser
+// reserves its space before it loads and the page doesn't jump (PageSpeed "CLS").
+function pb_img_dims($url) {
+    static $cache = [];
+    $url = (string) $url;
+    if (isset($cache[$url])) return $cache[$url];
+    $prefix = PB_BASE_PATH . '/uploads/';
+    $out = '';
+    if (strpos($url, $prefix) === 0 && strpos($url, '..') === false) {
+        $size = @getimagesize(PB_UPLOAD_DIR . '/' . substr(strtok($url, '?#'), strlen($prefix)));
+        if ($size && $size[0] > 0) $out = ' width="' . (int) $size[0] . '" height="' . (int) $size[1] . '"';
+    }
+    return $cache[$url] = $out;
+}
+
+// Post HTML: give every uploaded image that lacks them its width and height
+// (older posts, images added as HTML), for the same no-jump reason.
+function pb_add_img_dims($html) {
+    return preg_replace_callback('~<img\b[^>]*>~i', function ($m) {
+        $tag = $m[0];
+        if (preg_match('~\swidth="\d+"~i', $tag) || !preg_match('~\ssrc="([^"]+)"~i', $tag, $s)) return $tag;
+        $dims = pb_img_dims(html_entity_decode($s[1], ENT_QUOTES, 'UTF-8'));
+        return $dims === '' ? $tag : preg_replace('~^<img\b~i', '<img' . $dims, $tag);
+    }, (string) $html);
+}
+
 // One post card for listing pages.
 function pb_card_html($p) {
     $url = pb_url('post', $p['slug']);
@@ -202,7 +237,7 @@ function pb_card_html($p) {
     $h = '<article class="pb-card">';
     if ($img !== '') {
         $h .= '<a class="pb-card-img" href="' . pb_e($url) . '" tabindex="-1" aria-hidden="true">'
-            . '<img src="' . pb_e($img) . '" alt="" loading="lazy"></a>';
+            . '<img src="' . pb_e($img) . '" alt=""' . pb_img_dims($img) . ' loading="lazy" decoding="async"></a>';
     }
     $h .= '<div class="pb-card-body">';
     if (!empty($p['category_name'])) {
@@ -223,7 +258,7 @@ function pb_featured_html($p) {
     $excerpt = $p['excerpt'] !== '' ? $p['excerpt'] : pb_text_excerpt($p['body'], 220);
     $h = '<article class="pb-featured' . ($img === '' ? ' pb-featured-noimg' : '') . '">';
     if ($img !== '') {
-        $h .= '<a class="pb-featured-img" href="' . pb_e($url) . '" tabindex="-1" aria-hidden="true"><img src="' . pb_e($img) . '" alt=""></a>';
+        $h .= '<a class="pb-featured-img" href="' . pb_e($url) . '" tabindex="-1" aria-hidden="true"><img src="' . pb_e($img) . '" alt=""' . pb_img_dims($img) . ' fetchpriority="high"></a>';
     }
     $h .= '<div class="pb-featured-body"><span class="pb-featured-label">📌 Featured</span>'
         . '<h2 class="pb-featured-title"><a href="' . pb_e($url) . '">' . pb_e($p['title']) . '</a></h2>'

@@ -10,7 +10,7 @@
  */
 if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 
-define('PB_VERSION', '0.22.0');
+define('PB_VERSION', '0.23.0');
 define('PB_HOMEPAGE', 'https://jotkite.com');                             // project info, docs and support
 define('PB_REPO_URL', 'https://github.com/unnatidigiservices/jotkite');    // source code and issues
 define('PB_SCHEMA_VERSION', 4);
@@ -192,18 +192,46 @@ function pb_root_htaccess() {
          . "  RewriteCond %{REQUEST_FILENAME} !-f\n"
          . "  RewriteCond %{REQUEST_FILENAME} !-d\n"
          . "  RewriteRule ^(.*)$ index.php?route=$1 [QSA,L]\n"
+         . "</IfModule>\n"
+         . pb_htaccess_cache_block();
+}
+// Browser caching (PageSpeed "efficient cache lifetimes"): CSS and JS always carry a
+// ?v= version, so a year is safe; logos and icons can change, so a week.
+function pb_htaccess_cache_block() {
+    return "\n# Browser caching: CSS/JS are versioned (?v=), so keep them a year; icons a week.\n"
+         . "<IfModule mod_headers.c>\n"
+         . "  <FilesMatch \"\\.(css|js)$\">\n"
+         . "    Header set Cache-Control \"public, max-age=31536000, immutable\"\n"
+         . "  </FilesMatch>\n"
+         . "  <FilesMatch \"\\.(png|jpe?g|gif|webp|svg|ico|woff2?)$\">\n"
+         . "    Header set Cache-Control \"public, max-age=604800\"\n"
+         . "  </FilesMatch>\n"
          . "</IfModule>\n";
 }
-// Earlier generated versions of the main .htaccess (0.20.0 as PostBase, 0.21.0 as
-// JotKite). A file still byte-identical to one of them was written by JotKite and
-// never edited, so it is safe to bring up to date. Anything else is left alone.
+// Earlier generated versions of the main .htaccess (0.20 as PostBase, 0.21.0 and
+// 0.21.1–0.22 as JotKite). A file still byte-identical to one of them was written by
+// JotKite and never edited, so it is safe to bring up to date. Anything else is left alone.
 function pb_root_htaccess_is_old($raw) {
-    $cur = pb_root_htaccess();
+    $v0211 = substr(pb_root_htaccess(), 0, -strlen(pb_htaccess_cache_block()));
     $oldRules = "  # Never serve internals or docs directly.\n  RewriteRule ^(data|lib|tools|docs|dist)(/|$) - [F,L]\n";
-    $newRules = substr($cur, $a = strpos($cur, "  # Never serve internals directly.\n"), strpos($cur, "  # Addon code") - $a);
-    $v021 = str_replace($newRules, $oldRules, $cur);
+    $newRules = substr($v0211, $a = strpos($v0211, "  # Never serve internals directly.\n"), strpos($v0211, "  # Addon code") - $a);
+    $v021 = str_replace($newRules, $oldRules, $v0211);
     $v020 = str_replace("# JotKite\n", "# Unnati PostBase\n", str_replace('the folder JotKite lives in', 'the folder PostBase lives in', $v021));
-    return $raw === $v021 || $raw === $v020;
+    return $raw === $v0211 || $raw === $v021 || $raw === $v020;
+}
+// uploads/.htaccess: never executable; images kept by browsers for a year (every
+// upload gets a unique file name, so a changed image is always a new URL).
+function pb_uploads_htaccess($withCache = true) {
+    return "# Uploaded images only. Nothing in here may ever run as code.\n"
+         . "Options -Indexes -ExecCGI\n"
+         . "<FilesMatch \"\\.(php\\d?|phtml|phar|pl|py|cgi|sh|s?html?|htaccess|svg)$\">\n"
+         . "  <IfModule mod_authz_core.c>\n    Require all denied\n  </IfModule>\n"
+         . "  <IfModule !mod_authz_core.c>\n    Order allow,deny\n    Deny from all\n  </IfModule>\n</FilesMatch>\n"
+         . "<IfModule mod_mime.c>\n  RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .phar .html .htm\n"
+         . "  RemoveType .php .phtml .php3 .php4 .php5 .php7 .php8 .phar .html .htm\n</IfModule>\n"
+         . "<IfModule mod_headers.c>\n  Header set X-Content-Type-Options \"nosniff\"\n"
+         . ($withCache ? "  Header set Cache-Control \"public, max-age=31536000, immutable\"\n" : '')
+         . "</IfModule>\n";
 }
 function pb_ensure_protection() {
     static $done = false;
@@ -211,6 +239,8 @@ function pb_ensure_protection() {
     $done = true;
     $main = PB_ROOT . '/.htaccess';
     if (is_file($main) && pb_root_htaccess_is_old((string) @file_get_contents($main))) @file_put_contents($main, pb_root_htaccess());
+    $up = PB_UPLOAD_DIR . '/.htaccess'; // an untouched pre-0.23 copy gains the cache rule
+    if (is_file($up) && (string) @file_get_contents($up) === pb_uploads_htaccess(false)) @file_put_contents($up, pb_uploads_htaccess());
     $deny = "<IfModule mod_authz_core.c>\n  Require all denied\n</IfModule>\n<IfModule !mod_authz_core.c>\n  Order allow,deny\n  Deny from all\n</IfModule>\n";
     $files = [
         // The main one (clean URLs, blocked internals). Releases don't ship it at all:
@@ -218,14 +248,7 @@ function pb_ensure_protection() {
         PB_ROOT . '/.htaccess' => pb_root_htaccess(),
         dirname(pb_config('db_path')) . '/.htaccess' => "# The SQLite database lives here. Never serve it.\n" . $deny,
         PB_ROOT . '/lib/.htaccess' => $deny,
-        PB_UPLOAD_DIR . '/.htaccess' => "# Uploaded images only. Nothing in here may ever run as code.\n"
-            . "Options -Indexes -ExecCGI\n"
-            . "<FilesMatch \"\\.(php\\d?|phtml|phar|pl|py|cgi|sh|s?html?|htaccess|svg)$\">\n"
-            . "  <IfModule mod_authz_core.c>\n    Require all denied\n  </IfModule>\n"
-            . "  <IfModule !mod_authz_core.c>\n    Order allow,deny\n    Deny from all\n  </IfModule>\n</FilesMatch>\n"
-            . "<IfModule mod_mime.c>\n  RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .phar .html .htm\n"
-            . "  RemoveType .php .phtml .php3 .php4 .php5 .php7 .php8 .phar .html .htm\n</IfModule>\n"
-            . "<IfModule mod_headers.c>\n  Header set X-Content-Type-Options \"nosniff\"\n</IfModule>\n",
+        PB_UPLOAD_DIR . '/.htaccess' => pb_uploads_htaccess(),
     ];
     foreach ($files as $path => $content) {
         $dir = dirname($path);

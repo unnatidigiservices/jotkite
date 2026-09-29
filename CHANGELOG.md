@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.23.0 — 2026-09-29
+
+**Faster pages (PageSpeed).** These fixes come from a PageSpeed Insights run on jotkite.com (mobile: Performance 82, layout shift 0.286).
+
+- **No more jumping while the page loads (layout shift).** Cover images, post cards, the featured card and images inside posts now carry their real width and height, so the browser reserves their space. Older posts benefit too, because sizes are added when the page is shown.
+- **No render-blocking CSS.** The small blog and theme stylesheets (about 3 KB each) are now part of the page itself, instead of two extra requests before the first paint.
+- **Browser caching.**
+  - Uploaded images are kept for a year; every upload has a unique name, so a changed image is always a new address.
+  - Versioned CSS and JS are kept for a year, and logos and icons for a week.
+  - Untouched `.htaccess` files written by JotKite are upgraded automatically. Edited ones are left alone.
+- **Cover image alt text** falls back to the post title when none is entered.
+
 ## 0.22.0 — 2026-09-29
 
 - **"Put JotKite on your home screen."** On phones, the admin shows a small banner until it's dismissed, and never inside the installed app.
