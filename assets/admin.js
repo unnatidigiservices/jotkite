@@ -119,7 +119,8 @@
       ctx.drawImage(img, 0, 0, w, h);
       const keep = PB.keepMeta && file.type === 'image/jpeg' && file.slice
         ? file.slice(0, 131072).arrayBuffer().then(exifSegment).catch(() => null) : Promise.resolve(null);
-      return Promise.all([new Promise((res) => canvas.toBlob(res, type, 0.86)), keep]).then(([blob, exif]) => {
+      // High quality here: the server re-encodes to WebP once, and that's the only real compression.
+      return Promise.all([new Promise((res) => canvas.toBlob(res, type, 0.92)), keep]).then(([blob, exif]) => {
         if (!blob || (blob.size >= file.size && !big)) return file;
         // The canvas drops the camera's metadata; carry it over (location, camera,
         // date), marked upright because the canvas already turned the pixels.
@@ -165,15 +166,17 @@
     return seg;
   }
 
-  function upload(original) {
-    return shrink(original).then(send);
+  // keepFormat: the server stores everything as WebP except these (favicon, social image).
+  function upload(original, keepFormat) {
+    return shrink(original).then((f) => send(f, keepFormat));
   }
 
-  function send(file) {
+  function send(file, keepFormat) {
     if (file.size > (PB.maxMb || 5) * 1048576) return Promise.reject(new Error('Images must be ' + (PB.maxMb || 5) + ' MB or smaller.'));
     const fd = new FormData();
     fd.append('do', 'upload');
     fd.append('_csrf', PB.csrf);
+    if (keepFormat) fd.append('keep_format', '1');
     fd.append('file', file);
     return fetch(PB.endpoint, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-CSRF-Token': PB.csrf } })
       .then((r) => r.json().catch(() => ({ error: 'Upload failed (' + r.status + ').' })).then((j) => {
@@ -197,7 +200,7 @@
       if (!chosen) return;
       up.disabled = true;
       up.textContent = 'Uploading…';
-      upload(chosen).then((r) => {
+      upload(chosen, f.hasAttribute('data-img-keep')).then((r) => {
         val.value = r.url;
         prev.innerHTML = '<img src="' + esc(r.url) + '" alt="">';
         clr.hidden = false;
@@ -221,13 +224,14 @@
       clr.hidden = false;
       up.textContent = 'Replace';
       bubble(val);
-    }));
+    }, f.hasAttribute('data-img-keep')));
   });
 
   // ---- media library picker: choose an uploaded image, or upload a new one ----
   // Used by the editor's Image button and by every image field. onPick gets {url, width, height}.
   let picker = null;
   let pickerDone = null;
+  let pickerKeep = false; // favicon/social image: don't convert to WebP
   let pickerPage = 1;
   let pickerTimer = 0;
   function buildPicker() {
@@ -264,7 +268,7 @@
       if (!chosen) return;
       up.disabled = true;
       up.textContent = 'Uploading…';
-      upload(chosen).then((r) => choosePicked(r)).catch((err) => window.alert(err.message))
+      upload(chosen, pickerKeep).then((r) => choosePicked(r)).catch((err) => window.alert(err.message))
         .finally(() => { up.disabled = false; up.textContent = '⬆ Upload new'; });
     });
   }
@@ -282,9 +286,10 @@
         more.hidden = !j.more;
       }).catch(() => { if (reset) grid.innerHTML = '<p class="pb-muted pb-small">Could not load the library.</p>'; });
   }
-  function openMediaPicker(onPick) {
+  function openMediaPicker(onPick, keepFormat) {
     if (!picker) buildPicker();
     pickerDone = onPick;
+    pickerKeep = !!keepFormat;
     picker.hidden = false;
     document.body.classList.add('pb-noscroll');
     $('[data-pick="q"]', picker).value = '';

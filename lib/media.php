@@ -181,14 +181,74 @@ function pb_exif_upright($segment) {
     return substr_replace($segment, pack($le ? 'v' : 'n', 1), $info['orientation_at'], 2);
 }
 
+// ---- WebP (all uploads are stored as WebP since 0.24) ----
+// A WebP file is a RIFF container of chunks. Photo details live in an "EXIF"
+// chunk (the same TIFF block a JPEG carries), which needs the extended "VP8X"
+// header with its EXIF flag set.
+
+/** Adds an EXIF block (given as a JPEG APP1 segment) to WebP bytes. $w/$h: image size. */
+function pb_webp_add_exif($webp, $segment, $w, $h) {
+    $tiff = substr((string) $segment, 10); // after FF E1, length and "Exif\0\0"
+    if ($tiff === '' || substr($webp, 0, 4) !== 'RIFF' || substr($webp, 8, 4) !== 'WEBP') return $webp;
+    $body = substr($webp, 12);
+    $first = substr($body, 0, 4);
+    if ($first === 'VP8X') {
+        $body[8] = chr(ord($body[8]) | 0x08); // EXIF flag
+    } else {
+        $alpha = 0;
+        if ($first === 'VP8L' && strlen($body) >= 13) { // lossless: the alpha bit sits in the bitstream header
+            $alpha = ((unpack('V', substr($body, 9, 4))[1] >> 28) & 1) ? 0x10 : 0;
+        }
+        $vp8x = 'VP8X' . pack('V', 10) . chr(0x08 | $alpha) . "\0\0\0"
+              . substr(pack('V', max(1, (int) $w) - 1), 0, 3) . substr(pack('V', max(1, (int) $h) - 1), 0, 3);
+        $body = $vp8x . $body;
+    }
+    $body .= 'EXIF' . pack('V', strlen($tiff)) . $tiff . (strlen($tiff) % 2 ? "\0" : '');
+    return 'RIFF' . pack('V', 4 + strlen($body)) . 'WEBP' . $body;
+}
+
+/** The EXIF block of WebP bytes, returned as a JPEG-style APP1 segment (for pb_exif_parse), or ''. */
+function pb_webp_exif_segment($webp) {
+    if (substr($webp, 0, 4) !== 'RIFF' || substr($webp, 8, 4) !== 'WEBP') return '';
+    $n = strlen($webp);
+    for ($i = 12; $i + 8 <= $n;) {
+        $id = substr($webp, $i, 4);
+        $len = unpack('V', substr($webp, $i + 4, 4))[1];
+        if ($id === 'EXIF') {
+            $tiff = substr($webp, $i + 8, $len);
+            if (strpos($tiff, "Exif\0\0") === 0) $tiff = substr($tiff, 6); // some tools include the JPEG prefix
+            return "\xFF\xE1" . pack('n', strlen($tiff) + 8) . "Exif\0\0" . $tiff;
+        }
+        $i += 8 + $len + ($len % 2);
+    }
+    return '';
+}
+
+/** True for a GIF with more than one frame (converting it would freeze the animation). */
+function pb_gif_is_animated($path) {
+    return preg_match_all('#\x00\x21\xF9\x04.{4}\x00[\x2C\x21]#s', (string) @file_get_contents($path)) > 1;
+}
+
+/** Can this server write WebP? (GD built with WebP support.) */
+function pb_webp_available() {
+    static $ok = null;
+    if ($ok === null) $ok = function_exists('imagewebp') && function_exists('imagecreatetruecolor') && (!function_exists('gd_info') || !empty(gd_info()['WebP Support']));
+    return $ok;
+}
+
 /** Photo details of an image file for the Media Manager ('' fields when absent). */
 function pb_photo_info($path) {
-    if (!preg_match('/\.jpe?g$/i', $path)) return null;
-    $fh = @fopen($path, 'rb');
-    if (!$fh) return null;
-    $head = fread($fh, 131072); // EXIF always sits in the first 64 KB
-    fclose($fh);
-    $seg = pb_jpeg_exif_segment((string) $head);
+    if (preg_match('/\.webp$/i', $path)) {
+        $seg = pb_webp_exif_segment((string) @file_get_contents($path)); // the EXIF chunk sits after the image data
+    } elseif (preg_match('/\.jpe?g$/i', $path)) {
+        $fh = @fopen($path, 'rb');
+        if (!$fh) return null;
+        $head = fread($fh, 131072); // EXIF always sits in the first 64 KB
+        fclose($fh);
+        $seg = pb_jpeg_exif_segment((string) $head);
+    } else {
+        return null;
+    }
     $info = $seg !== '' ? pb_exif_parse($seg) : null;
     if (!$info) return null;
     $model = $info['make'] !== '' && stripos($info['model'], $info['make']) === 0 ? trim(substr($info['model'], strlen($info['make']))) : $info['model'];

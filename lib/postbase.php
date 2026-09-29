@@ -10,7 +10,7 @@
  */
 if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 
-define('PB_VERSION', '0.23.0');
+define('PB_VERSION', '0.24.0');
 define('PB_HOMEPAGE', 'https://jotkite.com');                             // project info, docs and support
 define('PB_REPO_URL', 'https://github.com/unnatidigiservices/jotkite');    // source code and issues
 define('PB_SCHEMA_VERSION', 4);
@@ -1117,7 +1117,7 @@ function pb_rename_element(DOMDocument $doc, DOMElement $el, $newTag) {
 // UPLOADS — images only, re-validated from the file bytes, never trusted by
 // extension. uploads/.htaccess also stops any script from running there.
 // ----------------------------------------------------------------------------
-function pb_handle_upload($file) {
+function pb_handle_upload($file, $keepFormat = false) {
     if (!is_array($file) || !isset($file['error'])) return ['error' => 'No file received.'];
     if ($file['error'] !== UPLOAD_ERR_OK) {
         return ['error' => $file['error'] === UPLOAD_ERR_INI_SIZE || $file['error'] === UPLOAD_ERR_FORM_SIZE
@@ -1125,24 +1125,31 @@ function pb_handle_upload($file) {
     }
     $maxBytes = (int) (pb_config('max_upload_mb') * 1024 * 1024);
     if ($file['size'] > $maxBytes) return ['error' => 'Images must be ' . pb_config('max_upload_mb') . ' MB or smaller.'];
-    return pb_store_image($file['tmp_name'], (string) $file['name'], true);
+    return pb_store_image($file['tmp_name'], (string) $file['name'], true, $keepFormat);
 }
 
 // Validates an image file on disk (by its bytes, never its name), resizes it if
 // needed and moves it into uploads/YYYY/MM/. Shared by uploads and imports.
-function pb_store_image($tmpPath, $origName, $isUpload) {
+// Everything is stored as WebP (smaller, same look), except animated GIFs, images
+// that must keep their format ($keepFormat: favicon, default social image) and
+// servers whose GD can't write WebP. No original is kept.
+function pb_store_image($tmpPath, $origName, $isUpload, $keepFormat = false) {
     $info = @getimagesize($tmpPath);
     $types = [IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_GIF => 'gif'];
     if (defined('IMAGETYPE_WEBP')) $types[IMAGETYPE_WEBP] = 'webp';
     if (!$info || !isset($types[$info[2]])) return ['error' => 'Only JPG, PNG, GIF and WebP images can be uploaded.'];
     $ext = $types[$info[2]];
+    $loaders = ['jpg' => 'imagecreatefromjpeg', 'png' => 'imagecreatefrompng', 'gif' => 'imagecreatefromgif', 'webp' => 'imagecreatefromwebp'];
+    $toWebp = !$keepFormat && pb_webp_available() && function_exists($loaders[$ext]) && !($ext === 'gif' && pb_gif_is_animated($tmpPath));
+    $outExt = $toWebp ? 'webp' : $ext;
 
     $sub = gmdate('Y') . '/' . gmdate('m');
     pb_ensure_protection();
     $dir = PB_UPLOAD_DIR . '/' . $sub;
     if (!is_dir($dir) && !@mkdir($dir, 0755, true)) return ['error' => 'Could not create the uploads folder.'];
     $base = pb_slugify(pathinfo($origName, PATHINFO_FILENAME), 40) ?: 'image';
-    $name = $base . '-' . bin2hex(random_bytes(3)) . '.' . $ext;
+    $stem = $base . '-' . bin2hex(random_bytes(3));
+    $name = $stem . '.' . $outExt;
     $dest = $dir . '/' . $name;
 
     [$w, $h] = [$info[0], $info[1]];
@@ -1155,36 +1162,49 @@ function pb_store_image($tmpPath, $origName, $isUpload) {
     $orient = $exif !== '' ? (int) (pb_exif_parse($exif)['orientation'] ?? 1) : 1;
     $orient = $orient >= 2 && $orient <= 8 ? $orient : 1;
     $sideways = $orient >= 5;
-    // Re-encode when too wide, or when metadata must go but the camera's
+    // Re-encode to WebP, or when too wide, or when metadata must go but the camera's
     // rotation lives only in that metadata (the pixels need turning first).
     $resized = false;
     $mustTurn = $strip && $orient !== 1;
-    if (($sideways ? $h : $w) > $max || $mustTurn) {
-        if ($ext !== 'gif' && function_exists('imagecreatetruecolor')) {
-            $loaders = ['jpg' => 'imagecreatefromjpeg', 'png' => 'imagecreatefrompng', 'webp' => 'imagecreatefromwebp'];
-            $savers  = ['jpg' => 'imagejpeg', 'png' => 'imagepng', 'webp' => 'imagewebp'];
-            $src = function_exists($loaders[$ext]) && function_exists($savers[$ext]) ? @$loaders[$ext]($tmpPath) : false;
-            if ($src) {
-                if ($orient !== 1) {
-                    $src = pb_gd_orient($src, $orient);
-                    [$w, $h] = [imagesx($src), imagesy($src)];
+    if ($toWebp || ((($sideways ? $h : $w) > $max || $mustTurn) && $ext !== 'gif')) {
+        $savers = ['jpg' => 'imagejpeg', 'png' => 'imagepng', 'webp' => 'imagewebp'];
+        $src = function_exists('imagecreatetruecolor') && function_exists($loaders[$ext]) && function_exists($savers[$outExt] ?? '') ? @$loaders[$ext]($tmpPath) : false;
+        if ($src) {
+            if (!imageistruecolor($src)) imagepalettetotruecolor($src); // palette PNG/GIF
+            if ($orient !== 1) {
+                $src = pb_gd_orient($src, $orient);
+                [$w, $h] = [imagesx($src), imagesy($src)];
+            }
+            $nw = min($w, $max);
+            $nh = (int) round($h * $nw / $w);
+            $dst = imagecreatetruecolor($nw, $nh);
+            if ($outExt !== 'jpg') { // keep transparency
+                imagealphablending($dst, false);
+                imagesavealpha($dst, true);
+                imagefill($dst, 0, 0, imagecolorallocatealpha($dst, 0, 0, 0, 127));
+            }
+            imagecopyresampled($dst, $src, 0, 0, 0, 0, $nw, $nh, $w, $h);
+            $ok = $outExt === 'jpg' ? imagejpeg($dst, $dest, 85) : ($outExt === 'png' ? imagepng($dst, $dest, 7) : imagewebp($dst, $dest, 82));
+            imagedestroy($src);
+            imagedestroy($dst);
+            if ($ok) {
+                $resized = true;
+                [$w, $h] = [$nw, $nh];
+                // GD drops EXIF: put it back, marked upright since the pixels now are.
+                if (!$strip && $exif !== '') {
+                    $out = (string) file_get_contents($dest);
+                    $out = $outExt === 'webp' ? pb_webp_add_exif($out, pb_exif_upright($exif), $w, $h) : pb_jpeg_add_exif($out, pb_exif_upright($exif));
+                    @file_put_contents($dest, $out);
                 }
-                $nw = min($w, $max);
-                $nh = (int) round($h * $nw / $w);
-                $dst = imagecreatetruecolor($nw, $nh);
-                if ($ext !== 'jpg') { imagealphablending($dst, false); imagesavealpha($dst, true); }
-                imagecopyresampled($dst, $src, 0, 0, 0, 0, $nw, $nh, $w, $h);
-                $ok = $ext === 'jpg' ? imagejpeg($dst, $dest, 85) : ($ext === 'png' ? imagepng($dst, $dest, 7) : imagewebp($dst, $dest, 82));
-                imagedestroy($src);
-                imagedestroy($dst);
-                if ($ok) {
-                    $resized = true;
-                    [$w, $h] = [$nw, $nh];
-                    // GD drops EXIF: put it back, marked upright since the pixels now are.
-                    if (!$strip && $exif !== '') @file_put_contents($dest, pb_jpeg_add_exif((string) file_get_contents($dest), pb_exif_upright($exif)));
-                }
+            } else {
+                @unlink($dest);
             }
         }
+    }
+    if (!$resized && $outExt !== $ext) { // WebP failed (odd image, low memory): keep the original format
+        $outExt = $ext;
+        $name = $stem . '.' . $ext;
+        $dest = $dir . '/' . $name;
     }
     if (!$resized) {
         if ($strip && $exif !== '') {

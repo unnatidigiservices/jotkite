@@ -113,7 +113,8 @@ function pb_utc_to_local_input($utc) {
 // by admin.js through the data-imgfield attributes.
 function pb_image_field($name, $value, $label, $hint = '', $editable = true) {
     $value = (string) $value;
-    $h = '<div class="pb-imgfield" data-imgfield><span class="pb-small pb-field-label">' . pb_e($label) . '</span>'
+    $keep = in_array($name, ['design_favicon', 'design_social_image'], true) ? ' data-img-keep' : ''; // not converted to WebP
+    $h = '<div class="pb-imgfield" data-imgfield' . $keep . '><span class="pb-small pb-field-label">' . pb_e($label) . '</span>'
        . '<div class="pb-imgfield-preview" data-img-preview>' . ($value !== '' ? '<img src="' . pb_e($value) . '" alt="">' : '') . '</div>'
        . '<input type="hidden" name="' . pb_e($name) . '" value="' . pb_e($value) . '" data-img-value>';
     if ($editable) {
@@ -362,7 +363,9 @@ if ($isPost) {
     }
     if ($do === 'upload') {
         if (!pb_can($user, 'media.upload')) pb_json(['error' => 'Not allowed.'], 403);
-        $r = pb_handle_upload($_FILES['file'] ?? null);
+        // Everything becomes WebP, except the favicon and default social image (keep_format):
+        // browsers and link previews handle PNG/JPG most reliably there.
+        $r = pb_handle_upload($_FILES['file'] ?? null, !empty($_POST['keep_format']));
         pb_json($r, isset($r['error']) ? 400 : 200);
     }
     if ($do === 'code_save' && pb_can($user, 'settings.manage')) {

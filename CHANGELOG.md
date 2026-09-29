@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.24.0 — 2026-09-29
+
+- **Every image is saved as WebP.** Uploads from the editor and the Media Manager, featured images and images pasted from other websites are converted once and stored only as `.webp`, with no original kept. WebP is usually 25–35% smaller than JPEG at the same look.
+  - Transparency is kept, and the camera's rotation is applied.
+  - Photo details (location, date, camera) are written into the WebP, so *Keep photo details* works as before. The Media Manager reads them from WebP files too.
+  - **Not converted:** animated GIFs (converting would freeze the animation), and the favicon and default social image in Settings → Design, where browsers and link previews handle PNG/JPG most reliably.
+  - Servers whose PHP image library can't write WebP keep saving the original format. Existing images are unchanged.
+- The in-browser photo shrink now uses a higher JPEG quality, since the server's WebP conversion is the one real compression step.
+
 ## 0.23.0 — 2026-09-29
 
 **Faster pages (PageSpeed).** These fixes come from a PageSpeed Insights run on jotkite.com (mobile: Performance 82, layout shift 0.286).
