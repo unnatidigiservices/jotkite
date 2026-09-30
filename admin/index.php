@@ -176,9 +176,10 @@ if (!$user && pb_count_users() === 0) {
         if ($key !== '' && !hash_equals($key, (string) ($_POST['setup_key'] ?? ''))) $err = 'Wrong setup key.';
         elseif ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) $err = 'Enter your name and a valid email.';
         elseif (strlen($pass) < 8) $err = 'Use a password of at least 8 characters.';
+        elseif (trim((string) ($_POST['username'] ?? '')) !== '' && pb_username_clean($_POST['username']) === '') $err = 'Usernames need 3–30 letters, digits, dots, dashes or underscores.';
         else {
-            pb_q("INSERT INTO users (email, name, password_hash, role, created_at) VALUES (?, ?, ?, 'admin', ?)",
-                [$email, $name, password_hash($pass, PASSWORD_DEFAULT), pb_now()]);
+            pb_q("INSERT INTO users (email, name, password_hash, role, created_at, username) VALUES (?, ?, ?, 'admin', ?, ?)",
+                [$email, $name, password_hash($pass, PASSWORD_DEFAULT), pb_now(), pb_username_unique((string) ($_POST['username'] ?? ''), 0, $name)]);
             pb_attempt_login($email, $pass);
             pb_flash('Welcome to JotKite. Write your first post!');
             pb_redirect('view=edit');
@@ -190,7 +191,8 @@ if (!$user && pb_count_users() === 0) {
         <form method="post">
           <?= pb_csrf_field() ?><input type="hidden" name="do" value="setup">
           <?php if ($key !== ''): ?><label>Setup key<input name="setup_key" required autocomplete="off"></label><?php endif; ?>
-          <label>Your name<input name="name" required value="<?= pb_e($_POST['name'] ?? '') ?>"></label>
+          <label>Your name <span class="pb-small pb-muted">(shown on your posts)</span><input name="name" required value="<?= pb_e($_POST['name'] ?? '') ?>"></label>
+          <label>Username <span class="pb-small pb-muted">(for signing in; optional, made from your name if empty)</span><input name="username" value="<?= pb_e($_POST['username'] ?? '') ?>" autocapitalize="none" spellcheck="false" pattern="[A-Za-z0-9._-]{3,30}" autocomplete="username"></label>
           <label>Email<input type="email" name="email" required value="<?= pb_e($_POST['email'] ?? '') ?>"></label>
           <label>Password<input type="password" name="password" required minlength="8" autocomplete="new-password"></label>
           <button class="pb-btn pb-btn-primary pb-btn-block">Create admin account</button>
@@ -221,6 +223,13 @@ if (!$user) {
         pb_csrf_check();
         $role = (string) ($_POST['role'] ?? '');
         $du = isset(PB_DEMO_USERS[$role]) ? pb_row('SELECT * FROM users WHERE email = ? AND active = 1', [PB_DEMO_USERS[$role][0]]) : null;
+        if (!$du && isset(PB_DEMO_USERS[$role]) && !pb_row('SELECT id FROM users WHERE email = ?', [PB_DEMO_USERS[$role][0]])) {
+            // A role added after this demo's snapshot was made (e.g. Author in 0.25): create it now.
+            [$dEmail, $dName] = PB_DEMO_USERS[$role];
+            pb_q('INSERT INTO users (email, name, password_hash, role, created_at, username) VALUES (?, ?, ?, ?, ?, ?)',
+                [$dEmail, $dName, password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT), $role, pb_now(), pb_username_unique($dName)]);
+            $du = pb_row('SELECT * FROM users WHERE email = ?', [$dEmail]);
+        }
         if ($du) {
             session_regenerate_id(true);
             $_SESSION['pb_uid'] = (int) $du['id'];
@@ -243,7 +252,7 @@ if (!$user) {
         if (pb_demo_on()): ?>
         <p class="pb-muted">Pick a role: no password needed. Everything you do is wiped every <?= pb_demo_minutes() ?> minutes (next reset in <?= pb_demo_minutes_left() ?> min).</p>
         <div class="pb-demo-roles">
-          <?php foreach (['admin' => 'Everything, including users and settings', 'editor' => 'Writes, reviews and publishes', 'contributor' => 'Writes and submits for review'] as $r => $what): ?>
+          <?php foreach (['admin' => 'Everything, including users and settings', 'editor' => 'Writes, reviews and publishes anyone\'s posts', 'author' => 'Writes and publishes their own posts', 'contributor' => 'Writes and submits for review'] as $r => $what): ?>
           <form method="post"><?= pb_csrf_field() ?><input type="hidden" name="do" value="demo_login"><input type="hidden" name="role" value="<?= $r ?>"><input type="hidden" name="next" value="<?= pb_e($next) ?>">
             <button class="pb-btn pb-btn-block<?= $r === 'admin' ? ' pb-btn-primary' : '' ?>"><span>Enter as <?= pb_role_label($r) ?></span><small><?= pb_e($what) ?></small></button></form>
           <?php endforeach; ?>
@@ -253,7 +262,7 @@ if (!$user) {
         <form method="post" id="pbLogin">
           <?= pb_csrf_field() ?><input type="hidden" name="do" value="login">
           <input type="hidden" name="next" value="<?= pb_e($next) ?>">
-          <label>Email<input type="email" name="email" id="pbLoginEmail" required autofocus value="<?= pb_e($_POST['email'] ?? '') ?>" autocomplete="username" autocapitalize="none" spellcheck="false" inputmode="email"></label>
+          <label>Email or username<input type="text" name="email" id="pbLoginEmail" required autofocus value="<?= pb_e($_POST['email'] ?? '') ?>" autocomplete="username" autocapitalize="none" spellcheck="false"></label>
           <label>Password<input type="password" name="password" id="pbLoginPass" required autocomplete="current-password"></label>
           <label class="pb-check pb-small"><input type="checkbox" name="remember" value="1" checked> Keep me signed in on this device (<?= PB_DEVICE_DAYS ?> days)</label>
           <button class="pb-btn pb-btn-primary pb-btn-block">Sign in</button>
@@ -449,9 +458,18 @@ if ($isPost) {
         $target = $id ? pb_row('SELECT * FROM users WHERE id = ?', [$id]) : null;
         if (!in_array($role, PB_ROLES, true)) $role = 'contributor';
         if ($name === '') { pb_flash('Name is required.', 'error'); pb_redirect('view=users'); }
+        // Username (sign-in + author page address): optional; made from the name when empty.
+        $uname = trim((string) ($_POST['username'] ?? ''));
+        if ($uname !== '') {
+            $clean = pb_username_clean($uname);
+            if ($clean === '' || $clean !== strtolower($uname)) { pb_flash('Usernames need 3–30 letters, digits, dots, dashes or underscores (no spaces).', 'error'); pb_redirect('view=users'); }
+            if ((int) pb_val('SELECT COUNT(*) FROM users WHERE username = ? AND id != ?', [$clean, $id])) { pb_flash('That username is already taken.', 'error'); pb_redirect('view=users'); }
+            $uname = $clean;
+        }
         if ($target && (int) $target['id'] === (int) $user['id'] && $role !== 'admin') {
             pb_flash('You can\'t remove your own admin role.', 'error'); pb_redirect('view=users');
         }
+        if ($target && $uname !== '') pb_q('UPDATE users SET username = ? WHERE id = ?', [$uname, $id]);
         if ($target && $target['source'] === 'georank') {
             pb_q('UPDATE users SET name = ? WHERE id = ?', [$name, $id]); // role follows the GeoRank login
         } elseif ($target) {
@@ -469,8 +487,8 @@ if ($isPost) {
                 pb_flash('New users need a valid email and a password of at least 8 characters.', 'error'); pb_redirect('view=users');
             }
             if ((int) pb_val('SELECT COUNT(*) FROM users WHERE email = ?', [$email])) { pb_flash('That email is already used.', 'error'); pb_redirect('view=users'); }
-            pb_q('INSERT INTO users (email, name, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)',
-                [$email, $name, password_hash($pass, PASSWORD_DEFAULT), $role, pb_now()]);
+            pb_q('INSERT INTO users (email, name, password_hash, role, created_at, username) VALUES (?, ?, ?, ?, ?, ?)',
+                [$email, $name, password_hash($pass, PASSWORD_DEFAULT), $role, pb_now(), $uname !== '' ? $uname : pb_username_unique('', 0, $name)]);
         }
         pb_flash('User saved.' . (!$target ? ' Share the sign-in link and password with them: ' . pb_abs_url(pb_admin_url()) : ''));
         pb_redirect('view=users');
@@ -578,7 +596,22 @@ if ($isPost) {
 
     if ($do === 'account_save') {
         $name = trim((string) ($_POST['name'] ?? ''));
-        if ($name !== '') pb_q('UPDATE users SET name = ?, bio = ? WHERE id = ?', [$name, trim((string) ($_POST['bio'] ?? '')), $user['id']]);
+        $cut = function ($s, $n) { $s = trim(str_replace("\r\n", "\n", (string) $s)); return function_exists('mb_substr') ? mb_substr($s, 0, $n) : substr($s, 0, $n); };
+        if ($name !== '') pb_q('UPDATE users SET name = ?, bio = ? WHERE id = ?', [$cut($name, 80), $cut($_POST['bio'] ?? '', 250), $user['id']]);
+        // Profile (0.25): long bio, photo, username and the privacy switches.
+        if (array_key_exists('bio_long', $_POST)) {
+            $avatar = trim((string) ($_POST['avatar'] ?? ''));
+            if ($avatar !== '' && (pb_safe_url($avatar) === null || preg_match('/^(mailto|tel):/i', $avatar))) $avatar = '';
+            pb_q('UPDATE users SET bio_long = ?, avatar = ?, show_name = ?, show_box = ?, public_page = ? WHERE id = ?',
+                [$cut($_POST['bio_long'], 1000), $avatar, empty($_POST['show_name']) ? 0 : 1, empty($_POST['show_box']) ? 0 : 1, empty($_POST['public_page']) ? 0 : 1, $user['id']]);
+        }
+        $uname = trim((string) ($_POST['username'] ?? ''));
+        if ($uname !== '' && strcasecmp($uname, (string) ($user['username'] ?? '')) !== 0) {
+            $clean = pb_username_clean($uname);
+            if ($clean === '' || $clean !== strtolower($uname)) { pb_flash('Usernames need 3–30 letters, digits, dots, dashes or underscores (no spaces).', 'error'); pb_redirect('view=account'); }
+            if ((int) pb_val('SELECT COUNT(*) FROM users WHERE username = ? AND id != ?', [$clean, $user['id']])) { pb_flash('That username is already taken.', 'error'); pb_redirect('view=account'); }
+            pb_q('UPDATE users SET username = ? WHERE id = ?', [$clean, $user['id']]);
+        }
         if (array_key_exists('default_category_id', $_POST)) {
             $dc = (int) $_POST['default_category_id'];
             if ($dc && !pb_val('SELECT id FROM categories WHERE id = ?', [$dc])) $dc = 0;
@@ -864,7 +897,7 @@ if ($view === 'edit') {
       <tbody>
       <?php foreach ($rows as $u): ?>
         <tr class="<?= (int) $u['active'] ? '' : 'pb-dim' ?>"><td><strong><?= pb_e($u['name']) ?></strong>
-            <div class="pb-small pb-muted"><?= $u['source'] === 'georank' ? 'Signs in through GeoRank' : pb_e($u['email']) ?></div></td>
+            <div class="pb-small pb-muted"><?= $u['source'] === 'georank' ? 'Signs in through GeoRank' : pb_e($u['email']) ?><?= !empty($u['username']) ? ' · @' . pb_e($u['username']) : '' ?></div></td>
           <td><span class="pb-role pb-role-<?= pb_e($u['role']) ?>"><?= pb_e(pb_role_label($u['role'])) ?></span><?= (int) $u['active'] ? '' : ' <span class="pb-small pb-muted">(inactive)</span>' ?></td>
           <td><?= (int) $u['n'] ?></td>
           <td class="pb-small pb-muted"><?= $u['last_login_at'] ? pb_e(pb_format_date($u['last_login_at'], 'j M Y')) : '—' ?></td>
@@ -878,6 +911,7 @@ if ($view === 'edit') {
     </table>
     <div class="pb-roles-help pb-small">
       <p><span class="pb-role pb-role-contributor">Contributor</span> writes drafts and submits them for review. Can't publish.</p>
+      <p><span class="pb-role pb-role-author">Author</span> writes, publishes and edits <em>their own</em> posts, no review needed. Can't touch anyone else's.</p>
       <p><span class="pb-role pb-role-editor">Editor</span> edits any post, approves, schedules, requests changes, unpublishes, manages categories.</p>
       <p><span class="pb-role pb-role-admin">Admin</span> everything, plus users, settings and permanent delete.</p>
     </div>
@@ -885,7 +919,8 @@ if ($view === 'edit') {
   <form method="post" class="pb-card" autocomplete="off">
     <h3 class="pb-h3"><?= $eu ? 'Edit user' : 'Invite a writer' ?></h3>
     <?= pb_csrf_field() ?><input type="hidden" name="do" value="user_save"><input type="hidden" name="id" value="<?= (int) ($eu['id'] ?? 0) ?>">
-    <label>Name<input name="name" required value="<?= pb_e($eu['name'] ?? '') ?>"></label>
+    <label>Display name <span class="pb-small pb-muted">(shown on posts)</span><input name="name" required value="<?= pb_e($eu['name'] ?? '') ?>"></label>
+    <label>Username <span class="pb-small pb-muted">(sign-in and author page; empty = made from the name)</span><input name="username" value="<?= pb_e($eu['username'] ?? '') ?>" autocapitalize="none" spellcheck="false" pattern="[A-Za-z0-9._-]{3,30}"></label>
     <?php if ($eu && $eu['source'] === 'georank'): ?>
       <p class="pb-small pb-muted">This account is used whenever someone signs in to GeoRank as <?= $eu['email'] === 'georank-admin@georank.local' ? 'Admin' : 'Editor' ?>. Its role follows GeoRank and the Settings page.</p>
     <?php else: ?>
@@ -1278,8 +1313,22 @@ if ($view === 'edit') {
   <?= pb_csrf_field() ?><input type="hidden" name="do" value="account_save">
   <p><span class="pb-role pb-role-<?= pb_e($user['role']) ?>"><?= pb_e(pb_role_label($user['role'])) ?></span>
     <?= $user['source'] === 'georank' ? '<span class="pb-small pb-muted">Signed in through GeoRank</span>' : '<span class="pb-small pb-muted">' . pb_e($user['email']) . '</span>' ?></p>
-  <label>Display name (shown on your posts)<input name="name" required value="<?= pb_e($user['name']) ?>"></label>
-  <label>Short bio<textarea name="bio" rows="3"><?= pb_e($user['bio']) ?></textarea></label>
+  <label>Display name (shown on your posts)<input name="name" required maxlength="80" value="<?= pb_e($user['name']) ?>"></label>
+  <label>Username <span class="pb-small pb-muted">(<?= $user['source'] === 'local' ? 'sign in with it or your email; ' : '' ?>your author page is <code><?= pb_e(pb_url('author', $user['username'] ?: 'username')) ?></code>)</span>
+    <input name="username" value="<?= pb_e($user['username'] ?? '') ?>" autocapitalize="none" spellcheck="false" pattern="[A-Za-z0-9._-]{3,30}" maxlength="30"></label>
+
+  <h3 class="pb-h3">Public profile</h3>
+  <div class="pb-avatar-field"><?= pb_image_field('avatar', $user['avatar'] ?? '', 'Profile photo', 'Square works best. Shown round, next to your bio.') ?></div>
+  <label>Short bio <span class="pb-muted pb-count" data-for="pbBio" data-max="250"></span>
+    <textarea name="bio" id="pbBio" rows="3" maxlength="250" placeholder="One or two lines, shown under your posts."><?= pb_e($user['bio']) ?></textarea></label>
+  <label>Long bio <span class="pb-muted pb-count" data-for="pbBioLong" data-max="1000"></span>
+    <textarea name="bio_long" id="pbBioLong" rows="6" maxlength="1000" placeholder="Your story, for your author page. Links (https://…) become clickable."><?= pb_e($user['bio_long'] ?? '') ?></textarea></label>
+
+  <h3 class="pb-h3">Privacy</h3>
+  <label class="pb-check pb-small"><input type="checkbox" name="show_name" value="1"<?= (int) ($user['show_name'] ?? 1) === 1 ? ' checked' : '' ?>> Show my name on my posts</label>
+  <label class="pb-check pb-small"><input type="checkbox" name="show_box" value="1"<?= (int) ($user['show_box'] ?? 1) === 1 ? ' checked' : '' ?>> Show my photo and short bio under my posts</label>
+  <label class="pb-check pb-small"><input type="checkbox" name="public_page" value="1"<?= (int) ($user['public_page'] ?? 1) === 1 ? ' checked' : '' ?>> Public author page (long bio and my posts)<?= !empty($user['username']) && (int) ($user['public_page'] ?? 1) === 1 ? ' · <a href="' . pb_e(pb_url('author', $user['username'])) . '" target="_blank" rel="noopener">view ↗</a>' : '' ?></label>
+  <p class="pb-small pb-muted">Your email is never shown publicly.</p>
   <?php $myCats = pb_all('SELECT id, name FROM categories ORDER BY sort, name'); if ($myCats): ?>
   <label>Default category for my new posts<select name="default_category_id">
     <option value="0">— None —</option>

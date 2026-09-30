@@ -23,6 +23,7 @@ if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 define('PB_DEMO_USERS', [
     'admin'       => ['demo-admin@postbase.demo', 'Demo Admin'],
     'editor'      => ['demo-editor@postbase.demo', 'Demo Editor'],
+    'author'      => ['demo-author@postbase.demo', 'Demo Author'],
     'contributor' => ['demo-writer@postbase.demo', 'Demo Contributor'],
 ]);
 
@@ -128,8 +129,8 @@ function pb_demo_bootstrap() {
         $u = pb_row('SELECT id FROM users WHERE email = ?', [$email]);
         if (!$u) {
             // Nobody knows this password: demo accounts are entered with the one-click buttons.
-            pb_q('INSERT INTO users (email, name, password_hash, role, bio, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-                [$email, $name, password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT), $role, '', pb_now()]);
+            pb_q('INSERT INTO users (email, name, password_hash, role, bio, created_at, username) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                [$email, $name, password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT), $role, '', pb_now(), pb_username_unique($name)]);
             $u = ['id' => (int) pb_db()->lastInsertId()];
         }
         $ids[$role] = (int) $u['id'];

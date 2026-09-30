@@ -41,6 +41,9 @@ if (isset($_GET['feed'])) {
 } elseif (isset($_GET['c'])) {
     $view = 'category';
     $slug = (string) $_GET['c'];
+} elseif (isset($_GET['author'])) {
+    $view = 'author';
+    $slug = (string) $_GET['author'];
 } elseif ($route !== '') {
     $parts = explode('/', $route);
     if ($route === 'feed.xml' || $route === 'feed') {
@@ -57,6 +60,11 @@ if (isset($_GET['feed'])) {
         if (count($parts) === 3) $page = max(1, (int) $parts[2]);
     } elseif ($parts[0] === 'category' && isset($parts[1])) {
         $view = 'category';
+        $slug = $parts[1];
+        if (isset($parts[2], $parts[3]) && $parts[2] === 'page' && ctype_digit($parts[3])) $page = max(1, (int) $parts[3]);
+        elseif (count($parts) > 2) $view = 'notfound';
+    } elseif ($parts[0] === 'author' && isset($parts[1])) { // /author/username/ (+ /page/N/)
+        $view = 'author';
         $slug = $parts[1];
         if (isset($parts[2], $parts[3]) && $parts[2] === 'page' && ctype_digit($parts[3])) $page = max(1, (int) $parts[3]);
         elseif (count($parts) > 2) $view = 'notfound';
@@ -91,7 +99,9 @@ if ($view === 'list') $view = 'home'; // same listing code below
 $now = pb_now();
 $publicWhere = "p.status = 'published' AND p.published_at <= :now";
 $postsOnly = " AND p.type = 'post'"; // pages (About, Contact…) never appear in lists, RSS or prev/next
-$listSelect = 'SELECT p.*, u.name AS author_name, c.name AS category_name, c.slug AS category_slug
+$listSelect = 'SELECT p.*, u.name AS author_name, u.username AS author_username, u.avatar AS author_avatar, u.bio AS author_bio,
+                      u.show_name AS author_show_name, u.show_box AS author_show_box, u.public_page AS author_public_page,
+                      c.name AS category_name, c.slug AS category_slug
                FROM posts p JOIN users u ON u.id = p.author_id LEFT JOIN categories c ON c.id = p.category_id';
 
 // ---- robots.txt (only reached when no real robots.txt file exists) ---------
@@ -144,6 +154,10 @@ if ($view === 'sitemap') {
         echo '<url><loc>' . pb_e(pb_abs_url(pb_url('post', $p['slug']))) . '</loc><lastmod>' . substr($mod, 0, 10) . "</lastmod></url>\n";
     }
     foreach ($cats as $c) echo '<url><loc>' . pb_e(pb_abs_url(pb_url('category', $c['slug']))) . "</loc></url>\n";
+    // Public author pages of people with at least one published post.
+    foreach (pb_all("SELECT DISTINCT u.username, u.public_page FROM users u JOIN posts p ON p.author_id = u.id WHERE u.active = 1 AND $publicWhere$postsOnly", ['now' => $now]) as $u) {
+        if (pb_author_url($u) !== '') echo '<url><loc>' . pb_e(pb_abs_url(pb_author_url($u))) . "</loc></url>\n";
+    }
     echo "</urlset>\n";
     exit;
 }
@@ -199,8 +213,11 @@ if ($view === 'post') {
             'headline' => $post['title'], 'description' => $desc, 'mainEntityOfPage' => $url,
             'datePublished' => $post['published_at'] ? str_replace(' ', 'T', $post['published_at']) . 'Z' : null,
             'dateModified' => str_replace(' ', 'T', $post['updated_at']) . 'Z',
-            'author' => ['@type' => 'Person', 'name' => $post['author_name']],
         ];
+        $au = pb_post_author($post); // name / page / box, as the author's privacy switches allow
+        $jsonld['author'] = $au['name'] !== ''
+            ? array_filter(['@type' => 'Person', 'name' => $au['name'], 'url' => $au['url'] !== '' ? pb_abs_url($au['url']) : null])
+            : ['@type' => 'Organization', 'name' => pb_setting('blog_title')];
         if ($shareImg !== '') $jsonld['image'] = pb_abs_url($shareImg);
 
         $prev = $next = null;
@@ -224,7 +241,7 @@ if ($view === 'post') {
     <header class="pb-article-head">
       <h1><?= pb_e($post['title']) ?></h1>
       <p class="pb-meta">
-<?php if (pb_setting('show_author') === '1'): ?>By <?= pb_e($post['author_name']) ?> &middot; <?php endif; ?>
+<?php if ($au['name'] !== ''): ?>By <?= $au['url'] !== '' ? '<a href="' . pb_e($au['url']) . '" rel="author">' . pb_e($au['name']) . '</a>' : pb_e($au['name']) ?> &middot; <?php endif; ?>
 <?php if ($post['published_at']): ?><time datetime="<?= pb_e(str_replace(' ', 'T', $post['published_at']) . 'Z') ?>"><?= pb_e(pb_format_date($post['published_at'])) ?></time> &middot; <?php endif; ?>
         <?= pb_reading_minutes($post['body']) ?> min read</p>
     </header>
@@ -234,6 +251,7 @@ if ($view === 'post') {
     <div class="pb-content">
 <?= pb_apply_filters('pb_post_content', pb_add_img_dims($post['body']), $post) /* sanitized on save; plugins may add to it */ ?>
     </div>
+<?= $au['box'] ? pb_author_box_html($au) : '' ?>
   </article>
 <?php if ($prev || $next): ?>
   <nav class="pb-prevnext" aria-label="More posts">
@@ -254,6 +272,53 @@ if ($view === 'post') {
         exit;
     }
     $view = 'notfound';
+}
+
+// ---- author page: photo, name, long bio and their posts ---------------------
+if ($view === 'author') {
+    $a = pb_row('SELECT * FROM users WHERE username = ? AND active = 1', [$slug]);
+    if (!$a || pb_author_url($a) === '') $view = 'notfound'; // no such author, or their page is private
+}
+if ($view === 'author') {
+    $per = max(1, min(48, (int) pb_setting('posts_per_page')));
+    $aw = "$publicWhere$postsOnly AND p.author_id = :aid";
+    $total = (int) pb_val("SELECT COUNT(*) FROM posts p WHERE $aw", ['now' => $now, 'aid' => (int) $a['id']]);
+    $pages = max(1, (int) ceil($total / $per));
+    $page = min($page, $pages);
+    $posts = pb_all("$listSelect WHERE $aw ORDER BY p.published_at DESC LIMIT :lim OFFSET :off",
+        ['now' => $now, 'aid' => (int) $a['id'], 'lim' => $per, 'off' => ($page - 1) * $per]);
+    $aurl = pb_abs_url(pb_url('author', $a['username'], $page));
+    ob_start(); ?>
+<div class="pb-wrap">
+  <header class="pb-author-head">
+    <?= pb_avatar_html($a['avatar'], $a['name'], 112) ?>
+    <div>
+      <h1><?= pb_e($a['name']) ?></h1>
+<?php if ($a['bio'] !== ''): ?>      <p class="pb-lead"><?= pb_e($a['bio']) ?></p><?php endif; ?>
+    </div>
+  </header>
+<?php if ($a['bio_long'] !== '' && $page === 1): ?>
+  <div class="pb-content pb-author-long"><?= pb_text_to_html($a['bio_long']) ?></div>
+<?php endif; ?>
+  <h2 class="pb-author-posts"><?= $total ? 'Posts by ' . pb_e($a['name']) : 'No posts yet' ?></h2>
+<?php if ($posts): ?>
+  <div class="pb-grid">
+<?php foreach ($posts as $p) echo pb_card_html($p) . "\n"; ?>
+  </div>
+<?= pb_pagination_html($page, $pages, 'author', $a['username']) ?>
+<?php endif; ?>
+</div>
+<?php
+    $content = ob_get_clean();
+    $person = array_filter(['@type' => 'Person', 'name' => $a['name'], 'description' => $a['bio'] !== '' ? $a['bio'] : null,
+        'image' => $a['avatar'] !== '' ? pb_abs_url($a['avatar']) : null, 'url' => pb_abs_url(pb_url('author', $a['username']))]);
+    pb_render_page([
+        'title' => $a['name'] . ($page > 1 ? ' — Page ' . $page : '') . ' | ' . pb_setting('blog_title'),
+        'description' => $a['bio'] !== '' ? $a['bio'] : 'Posts by ' . $a['name'] . ' on ' . pb_setting('blog_title') . '.',
+        'canonical' => $aurl, 'image' => $a['avatar'], 'type' => 'profile',
+        'jsonld' => ['@context' => 'https://schema.org', '@type' => 'ProfilePage', 'mainEntity' => $person],
+    ], $content);
+    exit;
 }
 
 // ---- lists (home, category, search) ----------------------------------------

@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.25.0 — 2026-09-30
+
+- **New role: Author.** Writes, publishes, schedules, edits, unpublishes, archives and restores *their own* posts, with no review. Can't see or change anyone else's posts, and doesn't manage pages, categories, users or settings.
+  - Roles are now Contributor → Author → Editor → Admin.
+  - The demo gets an "Enter as Author" button.
+- **Profiles.** My account now has:
+  - A **display name** (shown on posts).
+  - A **username**, which is also the author page address (`/author/username/`).
+  - A **profile photo** (shown round), a **short bio** (250 characters) and a **long bio** (1,000 characters, where web links become clickable).
+  - **Privacy switches:** *show my name on my posts*, *show my photo and short bio under my posts* and *public author page*, all on by default. Email addresses are never shown.
+- **Sign in with username or email.** Existing accounts got a username from their display name; it's shown and changeable in My account, and admins can set it in Users.
+- **On posts:**
+  - The byline links to the author page.
+  - A **"Written by" box** after the post shows the small photo, short bio and "More about …".
+  - The post's structured data names the author with their page. When an author hides their name, it names the blog instead.
+- **Author pages** (`/author/username/`) show the photo, name, bios and all of their posts, with pagination, `ProfilePage` structured data and sitemap entries. A private page is simply "not found".
+- Database schema v5: the users table is rebuilt (new role, username, photo, long bio, privacy switches). This runs automatically; posts and accounts are untouched.
+
 ## 0.24.0 — 2026-09-29
 
 - **Every image is saved as WebP.** Uploads from the editor and the Media Manager, featured images and images pasted from other websites are converted once and stored only as `.webp`, with no original kept. WebP is usually 25–35% smaller than JPEG at the same look.

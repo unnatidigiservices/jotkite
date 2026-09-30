@@ -61,9 +61,12 @@ JotKite needs to store posts, users with roles, a review workflow (who submitted
 ## Schema (v1)
 
 ```
-users          id, email (unique, case-insensitive), name, password_hash, role (contributor|editor|admin),
-               active, source (local|georank), bio, created_at, last_login_at,
+users          id, email (unique, case-insensitive), name (display name), password_hash,
+               role (contributor|author|editor|admin), active, source (local|georank),
+               bio (short, 250), created_at, last_login_at,
                default_category_id → categories (SET NULL)                       ← v4
+               username (unique, case-insensitive), avatar, bio_long (1000),
+               show_name, show_box, public_page (privacy, 1 = on)                ← v5
 categories     id, slug (unique), name, description, sort
 posts          id, slug (unique), title, excerpt, body (sanitized HTML), cover_image, cover_alt,
                category_id → categories (SET NULL), author_id → users,

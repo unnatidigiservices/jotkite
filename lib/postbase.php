@@ -10,21 +10,21 @@
  */
 if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 
-define('PB_VERSION', '0.24.0');
+define('PB_VERSION', '0.25.0');
 define('PB_HOMEPAGE', 'https://jotkite.com');                             // project info, docs and support
 define('PB_REPO_URL', 'https://github.com/unnatidigiservices/jotkite');    // source code and issues
-define('PB_SCHEMA_VERSION', 4);
+define('PB_SCHEMA_VERSION', 5);
 define('PB_DATA_DIR', PB_ROOT . '/data');
 define('PB_UPLOAD_DIR', PB_ROOT . '/uploads');
 // The site's web root: PB_ROOT itself when JotKite runs at a domain root
 // (e.g. jotkite.com), its parent for /blog/, two levels up for /news/blog/.
 define('PB_SITE_DIR', PB_BASE_PATH === '' ? PB_ROOT : dirname(PB_ROOT, substr_count(trim(PB_BASE_PATH, '/'), '/') + 1));
 define('PB_SESSION_LIFETIME', 12 * 60 * 60); // matches GeoRank so a shared session is never cut short
-define('PB_ROLES', ['contributor', 'editor', 'admin']);
+define('PB_ROLES', ['contributor', 'author', 'editor', 'admin']);
 define('PB_STATUSES', ['draft', 'pending', 'changes_requested', 'published', 'archived']);
 // URL names used by JotKite itself. "docs" and "tools" (repository folders) are
 // deliberately not here: their files are blocked, their names are free for pages.
-define('PB_RESERVED_SLUGS', ['admin', 'assets', 'data', 'lib', 'uploads', 'page', 'category', 'feed', 'feed.xml', 'sitemap.xml', 'robots.txt', 'search', 'index.php', 'posts', 'addons']);
+define('PB_RESERVED_SLUGS', ['admin', 'assets', 'data', 'lib', 'uploads', 'page', 'author', 'category', 'feed', 'feed.xml', 'sitemap.xml', 'robots.txt', 'search', 'index.php', 'posts', 'addons']);
 
 // ----------------------------------------------------------------------------
 // CONFIG — optional config.php (see config.sample.php) overrides these.
@@ -292,6 +292,9 @@ function pb_db() {
 function pb_migrate(PDO $pdo) {
     $v = (int) $pdo->query('PRAGMA user_version')->fetchColumn();
     if ($v >= PB_SCHEMA_VERSION) return;
+    // v5 rebuilds the users table (SQLite can't change a CHECK constraint in place).
+    // Foreign keys must be off for that, and this pragma only works outside a transaction.
+    if ($v < 5) $pdo->exec('PRAGMA foreign_keys = OFF');
     $pdo->beginTransaction();
     if ($v < 1) {
         $pdo->exec("
@@ -384,9 +387,60 @@ function pb_migrate(PDO $pdo) {
         // 0.20: each writer's default category, preselected on their new posts.
         $pdo->exec('ALTER TABLE users ADD COLUMN default_category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL');
     }
-    // Future schema changes go here as: if ($v < 5) { ... }
+    if ($v < 5) {
+        // 0.25: the Author role, usernames and public profiles (photo, short and long
+        // bio, privacy switches). Standard SQLite table rebuild: new table, copy, swap.
+        $pdo->exec("
+            CREATE TABLE users_v5 (
+                id                  INTEGER PRIMARY KEY,
+                email               TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                name                TEXT NOT NULL,
+                password_hash       TEXT,
+                role                TEXT NOT NULL CHECK (role IN ('contributor','author','editor','admin')),
+                active              INTEGER NOT NULL DEFAULT 1,
+                source              TEXT NOT NULL DEFAULT 'local',
+                bio                 TEXT NOT NULL DEFAULT '',
+                created_at          TEXT NOT NULL,
+                last_login_at       TEXT,
+                default_category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
+                username            TEXT COLLATE NOCASE,
+                avatar              TEXT NOT NULL DEFAULT '',
+                bio_long            TEXT NOT NULL DEFAULT '',
+                show_name           INTEGER NOT NULL DEFAULT 1,
+                show_box            INTEGER NOT NULL DEFAULT 1,
+                public_page         INTEGER NOT NULL DEFAULT 1
+            );
+            INSERT INTO users_v5 (id, email, name, password_hash, role, active, source, bio, created_at, last_login_at, default_category_id)
+                SELECT id, email, name, password_hash, role, active, source, bio, created_at, last_login_at, default_category_id FROM users;
+            DROP TABLE users;
+            ALTER TABLE users_v5 RENAME TO users;
+            CREATE UNIQUE INDEX idx_users_username ON users(username);
+        ");
+        // Every existing account gets a username (for signing in and its author page).
+        $taken = [];
+        foreach ($pdo->query('SELECT id, name, email FROM users ORDER BY id')->fetchAll(PDO::FETCH_ASSOC) as $u) {
+            $base = pb_username_clean($u['name']) ?: pb_username_clean(strstr($u['email'], '@', true)) ?: 'author';
+            $name = $base; $n = 2;
+            while (isset($taken[$name])) $name = substr($base, 0, 26) . '-' . $n++;
+            $taken[$name] = true;
+            $st = $pdo->prepare('UPDATE users SET username = ? WHERE id = ?');
+            $st->execute([$name, $u['id']]);
+        }
+    }
+    // Future schema changes go here as: if ($v < 6) { ... }
     $pdo->exec('PRAGMA user_version = ' . (int) PB_SCHEMA_VERSION);
     $pdo->commit();
+    if ($v < 5) $pdo->exec('PRAGMA foreign_keys = ON');
+}
+// A username: lowercase letters, digits, dot, dash, underscore; 3–30 characters,
+// starting with a letter or digit. Returns '' when nothing usable is left.
+function pb_username_clean($s) {
+    $s = strtolower(trim((string) $s));
+    if (function_exists('iconv')) { $t = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s); if ($t !== false) $s = strtolower($t); }
+    $s = preg_replace('/[^a-z0-9._-]+/', '-', $s);
+    $s = trim(preg_replace('/-{2,}/', '-', $s), '-._');
+    $s = substr($s, 0, 30);
+    return strlen($s) >= 3 ? $s : '';
 }
 function pb_q($sql, array $params = []) {
     $st = pb_db()->prepare($sql);
@@ -628,8 +682,9 @@ function pb_georank_user($georankRole) {
     $role = $georankRole === 'admin' ? 'admin' : pb_setting('georank_editor_role');
     if (!in_array($role, PB_ROLES, true)) $role = 'editor';
     if (!$u) {
-        pb_q('INSERT INTO users (email, name, role, source, created_at) VALUES (?, ?, ?, ?, ?)',
-            [$email, $georankRole === 'admin' ? 'Site Admin' : 'Site Editor', $role, 'georank', pb_now()]);
+        $display = $georankRole === 'admin' ? 'Site Admin' : 'Site Editor';
+        pb_q('INSERT INTO users (email, name, role, source, created_at, username) VALUES (?, ?, ?, ?, ?, ?)',
+            [$email, $display, $role, 'georank', pb_now(), pb_username_unique($display)]);
         $u = pb_row('SELECT * FROM users WHERE email = ?', [$email]);
     } elseif ($u['role'] !== $role) {
         pb_q('UPDATE users SET role = ? WHERE id = ?', [$role, $u['id']]);
@@ -658,10 +713,12 @@ function pb_login_throttled($ip) {
 function pb_attempt_login($email, $password) {
     $ip = $_SERVER['REMOTE_ADDR'] ?? '0';
     if (pb_login_throttled($ip)) return 'Too many attempts. Wait 15 minutes and try again.';
-    $u = pb_row("SELECT * FROM users WHERE email = ? AND source = 'local'", [trim((string) $email)]);
+    // Email or username, whichever the writer typed.
+    $login = trim((string) $email);
+    $u = pb_row("SELECT * FROM users WHERE (email = ? OR username = ?) AND source = 'local'", [$login, $login]);
     if (!$u || !$u['password_hash'] || !password_verify((string) $password, $u['password_hash'])) {
         pb_q('INSERT INTO login_attempts (ip, attempted_at) VALUES (?, ?)', [$ip, time()]);
-        return 'Wrong email or password.';
+        return 'Wrong email/username or password.';
     }
     if ((int) $u['active'] !== 1) return 'This account has been deactivated.';
     if (password_needs_rehash($u['password_hash'], PASSWORD_DEFAULT)) {
@@ -737,8 +794,20 @@ function pb_device_forget_all($userId, $keepCurrent = false) {
     pb_q('DELETE FROM devices WHERE user_id = ? AND selector != ?', [(int) $userId, $keep]);
 }
 
+// A free username based on $want (or on a display name when $want is empty).
+function pb_username_unique($want, $exceptId = 0, $fallback = '') {
+    $base = pb_username_clean($want) ?: pb_username_clean($fallback) ?: 'author';
+    $name = $base; $n = 2;
+    while ((int) pb_val('SELECT COUNT(*) FROM users WHERE username = ? AND id != ?', [$name, (int) $exceptId])) $name = substr($base, 0, 26) . '-' . $n++;
+    return $name;
+}
+// Public author page address, or '' when the author keeps no public page.
+function pb_author_url($u) {
+    if (empty($u['username']) || (isset($u['public_page']) && (int) $u['public_page'] !== 1)) return '';
+    return pb_url('author', $u['username']);
+}
 function pb_role_label($role) {
-    return ['contributor' => 'Contributor', 'editor' => 'Editor', 'admin' => 'Admin'][$role] ?? $role;
+    return ['contributor' => 'Contributor', 'author' => 'Author', 'editor' => 'Editor', 'admin' => 'Admin'][$role] ?? $role;
 }
 
 // ----------------------------------------------------------------------------
@@ -757,6 +826,8 @@ function pb_can($user, $perm, $post = null) {
     $role = $user['role'];
     $isEditor = $role === 'editor' || $role === 'admin';
     $own = $post && isset($post['author_id']) && (int) $post['author_id'] === (int) $user['id'];
+    // Author: publishes, edits, unpublishes and archives their OWN posts, with no review.
+    $selfPublish = $role === 'author' && ($own || !$post || empty($post['author_id']));
     $status = $post['status'] ?? '';
     switch ($perm) {
         case 'post.create':
@@ -765,21 +836,22 @@ function pb_can($user, $perm, $post = null) {
         case 'post.view':
             return $isEditor || $own;
         case 'post.edit':
-            return $isEditor || ($own && in_array($status, ['draft', 'pending', 'changes_requested'], true));
+            return $isEditor || ($selfPublish && $own && $status !== 'archived')
+                || ($own && in_array($status, ['draft', 'pending', 'changes_requested'], true));
         case 'post.submit':
-            return $own && in_array($status, ['draft', 'changes_requested'], true);
+            return $own && $role !== 'author' && in_array($status, ['draft', 'changes_requested'], true);
         case 'post.withdraw':
             return $own && $status === 'pending';
         case 'post.publish':
-            return $isEditor && $status !== 'archived';
+            return ($isEditor || $selfPublish) && $status !== 'archived';
         case 'post.request_changes':
             return $isEditor && $status === 'pending';
         case 'post.unpublish':
-            return $isEditor && $status === 'published';
+            return ($isEditor || ($selfPublish && $own)) && $status === 'published';
         case 'post.archive':
-            return $isEditor && $status !== 'archived';
+            return ($isEditor || ($selfPublish && $own)) && $status !== 'archived';
         case 'post.restore':
-            return $isEditor && $status === 'archived';
+            return ($isEditor || ($selfPublish && $own)) && $status === 'archived';
         case 'post.delete':
             return $role === 'admin' || ($own && $status === 'draft' && empty($post['first_published_at']));
         case 'category.manage':
@@ -808,9 +880,22 @@ function pb_post_by_id($id) {
                    WHERE p.id = ?', [(int) $id]);
 }
 function pb_post_by_slug($slug) {
-    return pb_row('SELECT p.*, u.name AS author_name, c.name AS category_name, c.slug AS category_slug
+    return pb_row('SELECT p.*, u.name AS author_name, u.username AS author_username, u.avatar AS author_avatar, u.bio AS author_bio,
+                          u.show_name AS author_show_name, u.show_box AS author_show_box, u.public_page AS author_public_page,
+                          c.name AS category_name, c.slug AS category_slug
                    FROM posts p JOIN users u ON u.id = p.author_id LEFT JOIN categories c ON c.id = p.category_id
                    WHERE p.slug = ?', [(string) $slug]);
+}
+// The author of a post, as the public sees it: name (unless hidden), page link and box.
+function pb_post_author($post) {
+    $u = ['username' => $post['author_username'] ?? '', 'public_page' => $post['author_public_page'] ?? 1];
+    return [
+        'name'    => (int) ($post['author_show_name'] ?? 1) === 1 && pb_setting('show_author') === '1' ? (string) $post['author_name'] : '',
+        'url'     => pb_author_url($u),
+        'avatar'  => (string) ($post['author_avatar'] ?? ''),
+        'bio'     => (string) ($post['author_bio'] ?? ''),
+        'box'     => (int) ($post['author_show_box'] ?? 1) === 1 && pb_setting('show_author') === '1' && (int) ($post['author_show_name'] ?? 1) === 1,
+    ];
 }
 function pb_post_is_public($post) {
     return $post && $post['status'] === 'published' && $post['published_at'] && $post['published_at'] <= pb_now();
@@ -1308,6 +1393,10 @@ function pb_url($type = 'home', $arg = null, $page = 1) {
             return $b . '?list=1' . ($page > 1 ? '&page=' . (int) $page : '');
         case 'category':
             $u = $pretty ? $b . 'category/' . rawurlencode($arg) . '/' : $b . '?c=' . rawurlencode($arg);
+            if ($page > 1) $u .= $pretty ? 'page/' . (int) $page . '/' : '&page=' . (int) $page;
+            return $u;
+        case 'author': // an author's profile page with their posts
+            $u = $pretty ? $b . 'author/' . rawurlencode($arg) . '/' : $b . '?author=' . rawurlencode($arg);
             if ($page > 1) $u .= $pretty ? 'page/' . (int) $page . '/' : '&page=' . (int) $page;
             return $u;
         case 'feed':

@@ -229,6 +229,41 @@ function pb_add_img_dims($html) {
     }, (string) $html);
 }
 
+// Round author photo, or the first letter of the name on a coloured disc.
+function pb_avatar_html($src, $name, $size) {
+    $size = (int) $size;
+    if ((string) $src !== '') {
+        return '<img class="pb-avatar" src="' . pb_e($src) . '" alt="' . pb_e($name) . '" width="' . $size . '" height="' . $size . '" loading="lazy" decoding="async">';
+    }
+    $initial = function_exists('mb_substr') ? mb_strtoupper(mb_substr(trim((string) $name), 0, 1)) : strtoupper(substr(trim((string) $name), 0, 1));
+    return '<span class="pb-avatar pb-avatar-initial" style="width:' . $size . 'px;height:' . $size . 'px;font-size:' . round($size * .42) . 'px" aria-hidden="true">' . pb_e($initial ?: '?') . '</span>';
+}
+// "Written by" box under a post: small photo, short bio, link to the author page.
+function pb_author_box_html(array $au) {
+    $name = pb_e($au['name']);
+    $link = $au['url'] !== '' ? pb_e($au['url']) : '';
+    $pic = pb_avatar_html($au['avatar'], $au['name'], 56);
+    return '<aside class="pb-author-box" aria-label="About the author">'
+        . ($link !== '' ? '<a href="' . $link . '" tabindex="-1" aria-hidden="true">' . $pic . '</a>' : $pic)
+        . '<div><p class="pb-author-name">Written by ' . ($link !== '' ? '<a href="' . $link . '" rel="author">' . $name . '</a>' : $name) . '</p>'
+        . ($au['bio'] !== '' ? '<p class="pb-author-bio">' . pb_e($au['bio']) . '</p>' : '')
+        . ($link !== '' ? '<a class="pb-author-more" href="' . $link . '">More about ' . $name . ' &rarr;</a>' : '')
+        . '</div></aside>';
+}
+// Plain text (long bio) to HTML: paragraphs, line breaks, and clickable web links.
+function pb_text_to_html($text) {
+    $out = '';
+    foreach (preg_split("/\n{2,}/", trim(str_replace("\r\n", "\n", (string) $text))) as $para) {
+        $h = preg_replace_callback('~https?://[^\s<>"\']+~i', function ($m) {
+            $url = rtrim(html_entity_decode($m[0], ENT_QUOTES, 'UTF-8'), '.,;:!?)');
+            $tail = substr(html_entity_decode($m[0], ENT_QUOTES, 'UTF-8'), strlen($url));
+            return '<a href="' . pb_e($url) . '" rel="nofollow ugc noopener" target="_blank">' . pb_e($url) . '</a>' . pb_e($tail);
+        }, pb_e($para));
+        $out .= '<p>' . nl2br($h, false) . '</p>';
+    }
+    return $out;
+}
+
 // One post card for listing pages.
 function pb_card_html($p) {
     $url = pb_url('post', $p['slug']);

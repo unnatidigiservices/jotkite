@@ -165,6 +165,8 @@ input[readonly], textarea[readonly] { background: var(--pb-surface-2); }
 .pb-role { display: inline-block; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: var(--pb-surface-2); color: var(--pb-muted); }
 .pb-role-admin { background: #efe7ff; color: #6d28d9; }
 .pb-role-editor { background: var(--pb-accent-soft); color: var(--pb-accent); }
+.pb-avatar-field .pb-imgfield-preview img { width: 96px; height: 96px; object-fit: cover; border-radius: 50%; }
+.pb-role-author { background: var(--pb-ok-soft); color: var(--pb-ok); }
 .pb-roles-help { margin-top: 16px; border-top: 1px solid var(--pb-border); padding-top: 10px; }
 .pb-roles-help p { margin: 6px 0; }
 
