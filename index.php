@@ -178,6 +178,10 @@ if ($view === 'post') {
         $desc = $post['seo_description'] !== '' ? $post['seo_description']
               : ($post['excerpt'] !== '' ? $post['excerpt'] : pb_text_excerpt($post['body']));
         $img = $post['cover_image'];      // shown above the article
+        // A post with no image at all shows its illustration on top, the same one as in the list and link previews.
+        if ($img === '' && $post['type'] === 'post' && pb_setting('fallback_image') === 'illustrations' && stripos($post['body'], '<img') === false) {
+            $img = pb_illustration_for($post['slug']);
+        }
         $shareImg = pb_post_image($post); // og:image / JSON-LD fallback chain
         $pageTitle = ($post['seo_title'] !== '' ? $post['seo_title'] : $post['title']) . ' | ' . pb_setting('blog_title');
 

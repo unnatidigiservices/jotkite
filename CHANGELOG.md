@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.26.0 — 2026-10-02
+
+- **Your blog's name in the admin.** The top-left shows the logo icon and your blog title (long titles end in "…", with the full name on hover). "Powered by JotKite" moves below *View blog*.
+- **10 built-in illustrations for posts without an image.** Settings → Design → *Posts without an image show* offers three choices:
+  - the default social image (as before, and the default);
+  - the **JotKite illustrations**: light, hand-drawn doodles with the kite logo, 1200×630 WebP, 14–23 KB each;
+  - no image.
+
+  Each post gets one illustration, picked from its address, so the same post shows the same picture in the blog list, at the top of the post and in link previews (`og:image`, structured data). Pictures carry their size, so nothing jumps while loading.
+
 ## 0.25.0 — 2026-09-30
 
 - **New role: Author.** Writes, publishes, schedules, edits, unpublishes, archives and restores *their own* posts, with no review. Can't see or change anyone else's posts, and doesn't manage pages, categories, users or settings.

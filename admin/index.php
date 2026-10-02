@@ -546,6 +546,7 @@ if ($isPost) {
             'design_text' => pb_valid_hex($_POST['design_text'] ?? ''),
             'design_bg' => pb_valid_hex($_POST['design_bg'] ?? ''),
             'design_surface' => pb_valid_hex($_POST['design_surface'] ?? ''),
+            'fallback_image' => in_array($_POST['fallback_image'] ?? '', ['social', 'illustrations', 'none'], true) ? $_POST['fallback_image'] : 'social',
         ]);
         pb_flash('Design saved.');
         pb_redirect('view=settings&tab=design');
@@ -960,6 +961,12 @@ if ($view === 'edit') {
       <?= pb_image_field('design_social_image', $s('design_social_image'), 'Default social share image', 'Used for Facebook/WhatsApp/X previews, and on post cards, when a post has no image of its own. 1200×630 works best.') ?>
       <?= pb_image_field('design_favicon', $s('design_favicon'), 'Blog favicon', 'Square PNG, at least 64×64. Leave empty to use the site\'s favicon.') ?>
     </div>
+    <label>Posts without an image show<select name="fallback_image">
+      <option value="social"<?= $s('fallback_image') === 'social' ? ' selected' : '' ?>>The default social share image (above)</option>
+      <option value="illustrations"<?= $s('fallback_image') === 'illustrations' ? ' selected' : '' ?>>JotKite illustrations (10, one picked per post)</option>
+      <option value="none"<?= $s('fallback_image') === 'none' ? ' selected' : '' ?>>No image</option>
+    </select><span class="pb-small pb-muted">For posts with no featured image and no image in the text. The same post always gets the same picture: in the blog list, on the post and in link previews.</span></label>
+    <div class="pb-illus-strip" aria-hidden="true"><?php foreach (glob(PB_ROOT . '/assets/illustrations/*.webp') ?: [] as $f): ?><img src="<?= pb_e(PB_BASE_PATH . '/assets/illustrations/' . basename($f)) ?>" alt="" loading="lazy" width="120" height="63"><?php endforeach; ?></div>
 
     <h3 class="pb-h3">Typography</h3>
     <div class="pb-row">
@@ -1469,7 +1476,8 @@ $nav = [
 <body class="pb-admin">
 <div class="pb-shell">
   <aside class="pb-sidebar">
-    <a class="pb-logo" href="<?= pb_e(pb_admin_url()) ?>" aria-label="JotKite"><img src="<?= pb_e(PB_BASE_PATH) ?>/assets/jk-icon.svg" alt="" width="36" height="36"><span class="pb-wordmark" aria-hidden="true">Jot<b>Kite</b></span></a>
+    <?php $siteName = (string) pb_setting('blog_title'); ?>
+    <a class="pb-logo" href="<?= pb_e(pb_admin_url()) ?>" title="<?= pb_e($siteName) ?>"><img src="<?= pb_e(PB_BASE_PATH) ?>/assets/jk-icon.svg" alt="" width="36" height="36"><span class="pb-site-name"><?= pb_e($siteName) ?></span></a>
     <nav>
       <?php foreach ($nav as [$key, $label, $icon, $show]): if (!$show) continue;
         $onPages = ($_GET['type'] ?? '') === 'page';
@@ -1480,6 +1488,7 @@ $nav = [
       <?php endforeach; ?>
       <a href="<?= pb_e(pb_url()) ?>" target="_blank" rel="noopener" class="pb-nav-blog">View blog ↗</a>
     </nav>
+    <a class="pb-powered" href="<?= PB_HOMEPAGE ?>" target="_blank" rel="noopener">Powered by <span class="pb-wordmark">Jot<b>Kite</b></span></a>
     <?php if ($georankUrl): ?><div class="pb-sidebar-foot"><a href="<?= pb_e($georankUrl) ?>">← GeoRank dashboard</a></div><?php endif; ?>
   </aside>
   <div class="pb-main">

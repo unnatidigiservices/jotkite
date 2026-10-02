@@ -10,7 +10,7 @@
  */
 if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 
-define('PB_VERSION', '0.25.0');
+define('PB_VERSION', '0.26.0');
 define('PB_HOMEPAGE', 'https://jotkite.com');                             // project info, docs and support
 define('PB_REPO_URL', 'https://github.com/unnatidigiservices/jotkite');    // source code and issues
 define('PB_SCHEMA_VERSION', 5);
@@ -477,7 +477,8 @@ function pb_settings_defaults() {
         'site_url'            => '',
         'language'            => 'en',
         'show_author'         => '1',
-        'photo_metadata'      => 'keep',          // keep | strip — EXIF location, camera, date (lib/media.php)
+        'photo_metadata'      => 'keep',
+        'fallback_image'      => 'social',        // social | illustrations | none — see pb_post_image()          // keep | strip — EXIF location, camera, date (lib/media.php)
         'georank_sso'         => '1',
         'georank_editor_role' => 'editor',        // what a GeoRank "Editor" login becomes here
         // Settings → Design. Empty = inherit (GeoRank site theme, or JotKite defaults).
@@ -634,14 +635,31 @@ function pb_nav_clean(array $rows) {
 }
 
 // Image for cards, og:image and JSON-LD: the post's cover, else the first
-// image in its body, else the blog's default social image (Settings → Design).
+// image in its body, else the fallback chosen in Settings → Design:
+//   social        the blog's default social image (the default)
+//   illustrations one of the built-in JotKite illustrations, picked from the post's
+//                 address so a post keeps the same picture everywhere (list, post, share)
+//   none          no image
 function pb_post_image($post) {
     if (!empty($post['cover_image'])) return $post['cover_image'];
     if (preg_match('/<img\b[^>]*\bsrc="([^"]+)"/i', (string) ($post['body'] ?? ''), $m)) {
         $src = html_entity_decode($m[1], ENT_QUOTES, 'UTF-8');
         if (pb_safe_url($src) !== null) return $src;
     }
-    return (string) pb_setting('design_social_image');
+    $mode = (string) pb_setting('fallback_image');
+    if ($mode === 'illustrations') return pb_illustration_for((string) ($post['slug'] ?? $post['id'] ?? ''));
+    return $mode === 'none' ? '' : (string) pb_setting('design_social_image');
+}
+// The built-in illustration for a post: same post, same picture.
+function pb_illustration_for($key) {
+    static $files = null;
+    if ($files === null) {
+        $files = glob(PB_ROOT . '/assets/illustrations/*.webp') ?: [];
+        sort($files);
+    }
+    if (!$files) return (string) pb_setting('design_social_image');
+    // md5, not crc32: crc32's last decimal digit spreads poorly over similar addresses.
+    return PB_BASE_PATH . '/assets/illustrations/' . basename($files[hexdec(substr(md5((string) $key), 0, 7)) % count($files)]);
 }
 function pb_setting($key) {
     static $cache = null;

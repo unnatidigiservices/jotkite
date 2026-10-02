@@ -209,10 +209,14 @@ function pb_img_dims($url) {
     static $cache = [];
     $url = (string) $url;
     if (isset($cache[$url])) return $cache[$url];
-    $prefix = PB_BASE_PATH . '/uploads/';
     $out = '';
-    if (strpos($url, $prefix) === 0 && strpos($url, '..') === false) {
-        $size = @getimagesize(PB_UPLOAD_DIR . '/' . substr(strtok($url, '?#'), strlen($prefix)));
+    $file = null;
+    if (strpos($url, '..') === false) {
+        if (strpos($url, PB_BASE_PATH . '/uploads/') === 0) $file = PB_UPLOAD_DIR . '/' . substr(strtok($url, '?#'), strlen(PB_BASE_PATH . '/uploads/'));
+        elseif (strpos($url, PB_BASE_PATH . '/assets/illustrations/') === 0) $file = PB_ROOT . substr(strtok($url, '?#'), strlen(PB_BASE_PATH)); // built-in fallback images
+    }
+    if ($file !== null) {
+        $size = @getimagesize($file);
         if ($size && $size[0] > 0) $out = ' width="' . (int) $size[0] . '" height="' . (int) $size[1] . '"';
     }
     return $cache[$url] = $out;
