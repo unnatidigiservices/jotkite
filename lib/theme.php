@@ -126,6 +126,10 @@ function pb_render_page(array $meta, $content) {
     $codeFooter = trim((string) pb_setting('code_footer'));
     if ($codeHead !== '') $tail .= "<!-- JotKite: custom head code -->\n" . $codeHead . "\n";
     if ($codeFooter !== '') $bodyEnd .= "<!-- JotKite: custom footer code -->\n" . $codeFooter . "\n";
+    // The photo viewer script, only on pages that have a gallery.
+    if (strpos($content, 'class="pb-gallery"') !== false) {
+        $bodyEnd .= '<script src="' . pb_e(PB_BASE_PATH . '/assets/gallery.js?v=' . PB_VERSION) . '" defer></script>' . "\n";
+    }
     $tail .= pb_demo_public_head();    // demo sites (lib/demo.php): noindex…
     $bodyEnd .= pb_demo_public_bar();  // …and a "Try the admin" bar
 

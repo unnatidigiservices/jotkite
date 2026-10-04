@@ -10,10 +10,10 @@
  */
 if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 
-define('PB_VERSION', '0.26.0');
+define('PB_VERSION', '0.27.0');
 define('PB_HOMEPAGE', 'https://jotkite.com');                             // project info, docs and support
 define('PB_REPO_URL', 'https://github.com/unnatidigiservices/jotkite');    // source code and issues
-define('PB_SCHEMA_VERSION', 5);
+define('PB_SCHEMA_VERSION', 6);
 define('PB_DATA_DIR', PB_ROOT . '/data');
 define('PB_UPLOAD_DIR', PB_ROOT . '/uploads');
 // The site's web root: PB_ROOT itself when JotKite runs at a domain root
@@ -427,7 +427,19 @@ function pb_migrate(PDO $pdo) {
             $st->execute([$name, $u['id']]);
         }
     }
-    // Future schema changes go here as: if ($v < 6) { ... }
+    if ($v < 6) {
+        // 0.27: extra data on posts for addons (ratings, places, anything), as JSON values.
+        $pdo->exec("
+            CREATE TABLE post_meta (
+                post_id    INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+                meta_key   TEXT NOT NULL,
+                meta_value TEXT NOT NULL DEFAULT '',
+                PRIMARY KEY (post_id, meta_key)
+            );
+            CREATE INDEX idx_post_meta_key ON post_meta(meta_key);
+        ");
+    }
+    // Future schema changes go here as: if ($v < 7) { ... }
     $pdo->exec('PRAGMA user_version = ' . (int) PB_SCHEMA_VERSION);
     $pdo->commit();
     if ($v < 5) $pdo->exec('PRAGMA foreign_keys = ON');
@@ -904,6 +916,51 @@ function pb_post_by_slug($slug) {
                    FROM posts p JOIN users u ON u.id = p.author_id LEFT JOIN categories c ON c.id = p.category_id
                    WHERE p.slug = ?', [(string) $slug]);
 }
+// ----------------------------------------------------------------------------
+// POST META — extra data on a post, for addons. Values are stored as JSON, so
+// strings, numbers, booleans and arrays come back as they went in. Keys: up to
+// 64 of a–z 0–9 _ . : - ; prefix them with your addon's slug ("places:rating").
+// Meta is deleted with its post.
+// ----------------------------------------------------------------------------
+function pb_meta_key_ok($key) {
+    return is_string($key) && preg_match('/^[a-z0-9_.:-]{1,64}$/', $key);
+}
+function pb_post_meta($postId, $key, $default = null) {
+    if (!pb_meta_key_ok($key)) return $default;
+    $raw = pb_val('SELECT meta_value FROM post_meta WHERE post_id = ? AND meta_key = ?', [(int) $postId, $key]);
+    if ($raw === false) return $default;
+    $v = json_decode((string) $raw, true);
+    return $v === null && $raw !== 'null' ? $default : $v;
+}
+/** Set a value (any JSON-able value); null deletes it. Returns false for a bad key or post. */
+function pb_post_meta_set($postId, $key, $value) {
+    if (!pb_meta_key_ok($key) || !pb_val('SELECT id FROM posts WHERE id = ?', [(int) $postId])) return false;
+    if ($value === null) {
+        pb_q('DELETE FROM post_meta WHERE post_id = ? AND meta_key = ?', [(int) $postId, $key]);
+        return true;
+    }
+    $json = json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    if ($json === false || strlen($json) > 262144) return false; // 256 KB per value is plenty
+    pb_q('INSERT INTO post_meta (post_id, meta_key, meta_value) VALUES (?, ?, ?) ON CONFLICT(post_id, meta_key) DO UPDATE SET meta_value = excluded.meta_value',
+        [(int) $postId, $key, $json]);
+    return true;
+}
+/** Every value of one post: [key => value]. */
+function pb_post_meta_all($postId) {
+    $out = [];
+    foreach (pb_all('SELECT meta_key, meta_value FROM post_meta WHERE post_id = ? ORDER BY meta_key', [(int) $postId]) as $r) $out[$r['meta_key']] = json_decode($r['meta_value'], true);
+    return $out;
+}
+/** One key for many posts at once (for lists): [post_id => value]. */
+function pb_post_meta_many(array $postIds, $key) {
+    $ids = array_values(array_unique(array_map('intval', $postIds)));
+    if (!$ids || !pb_meta_key_ok($key)) return [];
+    $out = [];
+    $rows = pb_all('SELECT post_id, meta_value FROM post_meta WHERE meta_key = ? AND post_id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')', array_merge([$key], $ids));
+    foreach ($rows as $r) $out[(int) $r['post_id']] = json_decode($r['meta_value'], true);
+    return $out;
+}
+
 // The author of a post, as the public sees it: name (unless hidden), page link and box.
 function pb_post_author($post) {
     $u = ['username' => $post['author_username'] ?? '', 'public_page' => $post['author_public_page'] ?? 1];
@@ -920,7 +977,7 @@ function pb_post_is_public($post) {
 }
 function pb_unique_slug($base, $table = 'posts', $exceptId = 0) {
     $base = pb_slugify($base) ?: ($table === 'posts' ? 'post' : 'category');
-    if (in_array($base, PB_RESERVED_SLUGS, true)) $base .= '-1';
+    if (in_array($base, PB_RESERVED_SLUGS, true) || ($table === 'posts' && isset($GLOBALS['pb_routes'][$base]))) $base .= '-1'; // addon routes too
     $slug = $base;
     $n = 2;
     while ((int) pb_val("SELECT COUNT(*) FROM {$table} WHERE slug = ? AND id != ?", [$slug, (int) $exceptId]) > 0) {
@@ -1190,7 +1247,7 @@ function pb_sanitize_children(DOMDocument $doc, DOMNode $node) {
         } elseif ($tag === 'figure') {
             // Only JotKite's own layout classes survive (image wrap/size, video embed).
             $keep = array_filter(preg_split('/\s+/', $child->getAttribute('class')), function ($c) {
-                return (bool) preg_match('/^pb-(figure|embed|align-(left|right|center)|w-(s|m|l|full))$/', $c);
+                return (bool) preg_match('/^pb-(figure|embed|gallery|align-(left|right|center)|w-(s|m|l|full))$/', $c);
             });
             if ($keep) $child->setAttribute('class', implode(' ', array_unique($keep)));
             else $child->removeAttribute('class');

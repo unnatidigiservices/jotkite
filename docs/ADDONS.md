@@ -118,8 +118,61 @@ pb_add_filter('pb_post_content', function ($html, $post) {
 | `pb_post_saved` | action | `$postId, $user` |
 | `pb_post_status_changed` | action | `$post, $action, $user, $note` (submit, approved, published, scheduled, request_changes, unpublish, archive, restore, withdraw) |
 | `pb_post_deleted` | action | `$post, $user` |
+| `pb_editor_panel` | action | `$post, $user, $canEdit`: echo a card into the editor's side column (0.27) |
+| `pb_admin_post` | action | `$do, $user`: handle your own admin form posts; CSRF is already checked (0.27) |
+| `pb_sitemap` | action | echo extra `<url><loc>…</loc></url>` lines into sitemap.xml (0.27) |
 
 The optional third argument to `pb_add_action` / `pb_add_filter` is a priority (lower runs first; default 10). Exceptions inside a hook are caught and logged, and the rest of the page still renders.
+
+## Bigger plugins (0.27+)
+
+Everything a feature-sized plugin needs, for example a places/reviews directory:
+
+```php
+<?php
+if (!defined('PB_ROOT')) { http_response_code(403); exit; }
+
+// 1. Your own tables, created once and upgraded by version number.
+pb_add_action('pb_init', function () {
+    pb_addon_migrate('places', 1, function (PDO $db, $from) {
+        if ($from < 1) $db->exec('CREATE TABLE places_place (id INTEGER PRIMARY KEY, slug TEXT UNIQUE, name TEXT NOT NULL, lat REAL, lng REAL)');
+    });
+});
+
+// 2. Extra data on a post: a card in the editor, saved with the post.
+pb_add_action('pb_editor_panel', function ($post, $user, $canEdit) {
+    $r = $post['id'] ? (int) pb_post_meta($post['id'], 'places:rating', 0) : 0;
+    echo '<div class="pb-card"><h3 class="pb-h3">Rating</h3><label class="pb-small">Stars'
+       . '<input type="number" name="places_rating" min="0" max="5" value="' . $r . '"' . ($canEdit ? '' : ' readonly') . '></label></div>';
+});
+pb_add_action('pb_post_saved', function ($postId, $user) {
+    if (isset($_POST['places_rating'])) pb_post_meta_set($postId, 'places:rating', max(0, min(5, (int) $_POST['places_rating'])));
+});
+
+// 3. An admin page in the menu (for every writer here; use 'settings.manage' for Admins only).
+pb_add_admin_page('places', 'Places', '📍', function ($user) {
+    echo '<div class="pb-card">Your places…</div>';
+}, 'post.create');
+
+// 4. A public address: /places/ and /places/<slug>/ (+ /page/N/).
+pb_add_route('places', function (array $parts, $page) {
+    if (isset($parts[1]) && !pb_row('SELECT id FROM places_place WHERE slug = ?', [$parts[1]])) return false; // → 404
+    pb_render_page(['title' => 'Places | ' . pb_setting('blog_title'), 'canonical' => pb_abs_url('/places/')], '<div class="pb-wrap">…</div>');
+    return true;
+});
+pb_add_action('pb_sitemap', function () { echo '<url><loc>' . pb_e(pb_abs_url('/places/')) . "</loc></url>\n"; });
+```
+
+| Function | What it does |
+|---|---|
+| `pb_post_meta($postId, $key, $default)` | Read a value (JSON-decoded: strings, numbers, arrays…) |
+| `pb_post_meta_set($postId, $key, $value)` | Write a value (`null` deletes). Max 256 KB per value |
+| `pb_post_meta_all($postId)` / `pb_post_meta_many($ids, $key)` | All values of a post / one key for many posts (for lists) |
+| `pb_addon_migrate($slug, $version, $fn)` | Create/upgrade your tables; runs in a transaction, once per version |
+| `pb_add_admin_page($key, $label, $icon, $render, $perm)` | Menu item + page at `/admin/?view=$key`; built-in names are reserved |
+| `pb_add_route($prefix, $handler)` | Public pages under `/$prefix/`; posts can no longer take that slug |
+
+Meta keys: up to 64 of `a-z 0-9 _ . : -`; prefix them with your slug (`places:rating`). Meta is deleted together with its post. Built-in galleries (`<figure class="pb-gallery">` with images) are available to plugins too: write that HTML into a post and the blog styles it and loads the photo viewer.
 
 ## Security checklist
 
@@ -131,4 +184,4 @@ The optional third argument to `pb_add_action` / `pb_add_filter` is a priority (
 
 ## Sharing your addon
 
-Publish it on GitHub with the topic `postbase-addon` and open an issue in [unnatidigiservices/postbase](https://github.com/unnatidigiservices/jotkite/issues) to have it listed on [jotkite.com](https://jotkite.com). Addons you distribute must be AGPL-compatible, unless you hold a JotKite commercial license.
+Publish it on GitHub with the topic `jotkite-addon` and open an issue in [unnatidigiservices/jotkite](https://github.com/unnatidigiservices/jotkite/issues) to have it listed on [jotkite.com](https://jotkite.com). Addons you distribute must be AGPL-compatible, unless you hold a JotKite commercial license.

@@ -641,6 +641,9 @@ if ($isPost) {
         pb_redirect('view=account');
     }
 
+    // Addons handle their own forms: pb_add_action('pb_admin_post', function ($do, $user) {…}).
+    // CSRF is already checked; handle your own "do" values and pb_redirect().
+    pb_do_action('pb_admin_post', $do, $user);
     pb_flash('That action isn\'t available to your role.', 'error');
     pb_redirect();
 }
@@ -821,6 +824,9 @@ if ($view === 'edit') {
         <textarea name="seo_description" id="pbSeoDesc" rows="3" placeholder="Defaults to the excerpt" <?= $canEdit ? '' : 'readonly' ?>><?= pb_e($p['seo_description']) ?></textarea>
       </label>
     </details>
+
+    <?php // Addons add their own cards here (inside the post form; read the fields in pb_post_saved). ?>
+    <?= pb_capture_action('pb_editor_panel', $p, $user, $canEdit) ?>
 
     <?php if ($post): ?>
     <div class="pb-card pb-more-actions">
@@ -1314,6 +1320,12 @@ if ($view === 'edit') {
 <?php endif; ?>
 <?php
 
+} elseif (isset(pb_admin_pages()[$view]) && pb_can($user, pb_admin_pages()[$view]['perm'])) {
+    // An addon's admin page (pb_add_admin_page). A failing addon shows an error, never a blank admin.
+    $ap = pb_admin_pages()[$view];
+    $title = $ap['label'];
+    try { ($ap['render'])($user); } catch (Throwable $e) { pb_addon_error($e, 'admin page ' . $view); echo '<div class="pb-flash pb-flash-error">This addon page failed to load: ' . pb_e($e->getMessage()) . '</div>'; }
+
 } elseif ($view === 'account') {
     $title = 'My account'; ?>
 <form method="post" class="pb-card pb-narrow">
@@ -1460,6 +1472,8 @@ $nav = [
     ['settings', 'Settings', '⚙️', pb_can($user, 'settings.manage')],
     ['account', 'My account', '👤', true],
 ];
+// Addon admin pages (pb_add_admin_page) go just before My account.
+foreach (pb_admin_pages() as $apKey => $ap) array_splice($nav, count($nav) - 1, 0, [[$apKey, $ap['label'], $ap['icon'], pb_can($user, $ap['perm'])]]);
 ?><!DOCTYPE html>
 <html lang="en">
 <head>

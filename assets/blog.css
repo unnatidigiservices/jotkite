@@ -108,6 +108,24 @@
    size), height always auto so nothing distorts. */
 .pb-content figure { margin: 1.4em 0; }
 .pb-content .pb-figure img { display: block; width: 100%; height: auto; }
+/* Gallery: square thumbnails, 3 a row (2 on phones); with 5+ photos the first one leads, big */
+.pb-content .pb-gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; clear: both; }
+.pb-content .pb-gallery:has(> img:nth-of-type(2):last-of-type) { grid-template-columns: repeat(2, 1fr); }
+.pb-content .pb-gallery:has(> img:nth-of-type(5)) > img:first-of-type { grid-column: span 2; grid-row: span 2; }
+.pb-content .pb-gallery img { display: block; width: 100%; height: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 10px; margin: 0; cursor: zoom-in; }
+.pb-content .pb-gallery figcaption { grid-column: 1 / -1; text-align: center; color: var(--pb-muted); font-size: .9em; }
+@media (max-width: 560px) { .pb-content .pb-gallery { grid-template-columns: repeat(2, 1fr); gap: 6px; } }
+/* Full-screen photo viewer (assets/gallery.js) */
+.pb-viewer { position: fixed; inset: 0; z-index: 9999; background: rgba(5, 8, 20, .94); display: flex; align-items: center; justify-content: center; touch-action: pan-y; }
+.pb-viewer[hidden] { display: none; }
+.pb-viewer img { max-width: 100vw; max-height: 100vh; object-fit: contain; border-radius: 0; user-select: none; }
+.pb-viewer button { position: absolute; border: 0; background: rgba(255, 255, 255, .14); color: #fff; width: 46px; height: 46px; border-radius: 50%; font-size: 26px; line-height: 1; cursor: pointer; }
+.pb-viewer button:hover { background: rgba(255, 255, 255, .26); }
+.pb-viewer-close { top: 14px; right: 14px; font-size: 20px !important; }
+.pb-viewer-prev { left: 14px; top: 50%; transform: translateY(-50%); }
+.pb-viewer-next { right: 14px; top: 50%; transform: translateY(-50%); }
+.pb-viewer-count { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); color: #fff; font-size: 14px; opacity: .8; }
+@media (max-width: 560px) { .pb-viewer-prev, .pb-viewer-next { display: none; } } /* phones swipe */
 .pb-content figcaption { font-size: .85em; color: var(--pb-muted); text-align: center; margin-top: 6px; line-height: 1.4; }
 .pb-content .pb-w-s { width: 300px; max-width: 100%; }
 .pb-content .pb-w-m { width: 500px; max-width: 100%; }

@@ -63,6 +63,12 @@ if (isset($_GET['feed'])) {
         $slug = $parts[1];
         if (isset($parts[2], $parts[3]) && $parts[2] === 'page' && ctype_digit($parts[3])) $page = max(1, (int) $parts[3]);
         elseif (count($parts) > 2) $view = 'notfound';
+    } elseif (isset($GLOBALS['pb_routes'][$parts[0]])) { // an addon's public address (pb_add_route)
+        $view = 'addon';
+        if (isset($parts[count($parts) - 2]) && $parts[count($parts) - 2] === 'page' && ctype_digit(end($parts))) {
+            $page = max(1, (int) end($parts));
+            $parts = array_slice($parts, 0, -2);
+        }
     } elseif ($parts[0] === 'author' && isset($parts[1])) { // /author/username/ (+ /page/N/)
         $view = 'author';
         $slug = $parts[1];
@@ -154,6 +160,7 @@ if ($view === 'sitemap') {
         echo '<url><loc>' . pb_e(pb_abs_url(pb_url('post', $p['slug']))) . '</loc><lastmod>' . substr($mod, 0, 10) . "</lastmod></url>\n";
     }
     foreach ($cats as $c) echo '<url><loc>' . pb_e(pb_abs_url(pb_url('category', $c['slug']))) . "</loc></url>\n";
+    pb_do_action('pb_sitemap'); // addons print their own <url>…</url> lines
     // Public author pages of people with at least one published post.
     foreach (pb_all("SELECT DISTINCT u.username, u.public_page FROM users u JOIN posts p ON p.author_id = u.id WHERE u.active = 1 AND $publicWhere$postsOnly", ['now' => $now]) as $u) {
         if (pb_author_url($u) !== '') echo '<url><loc>' . pb_e(pb_abs_url(pb_author_url($u))) . "</loc></url>\n";
@@ -275,6 +282,18 @@ if ($view === 'post') {
         ], $content);
         exit;
     }
+    $view = 'notfound';
+}
+
+// ---- addon routes (pb_add_route) ---------------------------------------------
+if ($view === 'addon') {
+    $handled = false;
+    try {
+        $handled = (bool) $GLOBALS['pb_routes'][$parts[0]]($parts, $page);
+    } catch (Throwable $e) {
+        pb_addon_error($e, 'route ' . $parts[0]);
+    }
+    if ($handled) exit;
     $view = 'notfound';
 }
 

@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.27.0 — 2026-10-04
+
+- **Photo galleries.**
+  - The editor's 🖼 Image picker now takes **several photos**: tap them in the order you want (numbered), or upload a whole batch at once, with "Uploading 3 of 8…" and the uploads arriving selected.
+  - One photo goes in as before. Several become a **gallery**: one question for alt text (each photo gets "…, photo 2 of 8"), and the gallery is selected as one block with Caption and Remove.
+  - On the blog: square thumbnails, 3 a row (2 on phones, 2 side by side for a pair), and with 5+ photos the first one leads, big.
+  - Tap a photo for a **full-screen viewer**: swipe on phones, arrow keys on desktop, Esc to close. It's a 2 KB script, loaded only on pages with a gallery.
+- **For addon developers** (see docs/ADDONS.md → *Bigger plugins*):
+  - **Post meta:** `pb_post_meta()`, `pb_post_meta_set()`, `pb_post_meta_all()` and `pb_post_meta_many()`. JSON values, deleted with their post.
+  - **Editor side panel:** the `pb_editor_panel` action, saved through `pb_post_saved`.
+  - **Admin pages:** `pb_add_admin_page()` adds a menu item and page; `pb_admin_post` handles the page's forms.
+  - **Public pages:** `pb_add_route()`, for example `/places/…` with pagination. Post slugs can't take a route's name. `pb_sitemap` adds sitemap entries.
+  - **Addon tables:** `pb_addon_migrate()`, versioned and run in a transaction.
+- Database schema v6 (`post_meta`), applied automatically.
+
 ## 0.26.0 — 2026-10-02
 
 - **Your blog's name in the admin.** The top-left shows the logo icon and your blog title (long titles end in "…", with the full name on hover). "Powered by JotKite" moves below *View blog*.

@@ -227,27 +227,35 @@
     }, f.hasAttribute('data-img-keep')));
   });
 
-  // ---- media library picker: choose an uploaded image, or upload a new one ----
-  // Used by the editor's Image button and by every image field. onPick gets {url, width, height}.
+  // ---- media library picker: choose an uploaded image, or upload new ones ----
+  // Single mode (image fields): a tap picks the image; onPick gets {url, width, height}.
+  // Multi mode (the editor): taps select images in order (numbered), several files
+  // can be uploaded at once (they arrive selected), and "Insert" hands onPick an array.
   let picker = null;
   let pickerDone = null;
   let pickerKeep = false; // favicon/social image: don't convert to WebP
+  let pickerMulti = false;
+  let pickerSel = [];     // selected items, in tap order
   let pickerPage = 1;
   let pickerTimer = 0;
+  const tileHtml = (it) => '<button type="button" class="pb-picker-tile" data-url="' + esc(it.url) + '" data-w="' + Number(it.width) + '" data-h="' + Number(it.height) + '" title="' + esc(it.name || '') + '">'
+    + '<img src="' + esc(it.url) + '" alt="" loading="lazy" decoding="async"><span>' + esc(it.name || it.url.split('/').pop()) + '</span><i class="pb-picker-num" aria-hidden="true"></i></button>';
   function buildPicker() {
     picker = document.createElement('div');
     picker.className = 'pb-picker';
     picker.hidden = true;
     picker.setAttribute('role', 'dialog');
     picker.setAttribute('aria-modal', 'true');
-    picker.setAttribute('aria-label', 'Choose an image');
+    picker.setAttribute('aria-label', 'Choose images');
     picker.innerHTML = '<div class="pb-picker-box">'
-      + '<div class="pb-picker-head"><h3 class="pb-h3">Choose an image</h3><button type="button" class="pb-lightbox-close" data-pick="close" aria-label="Close">✕</button></div>'
+      + '<div class="pb-picker-head"><h3 class="pb-h3" data-pick="title">Choose an image</h3><button type="button" class="pb-lightbox-close" data-pick="close" aria-label="Close">✕</button></div>'
       + '<div class="pb-picker-bar"><button type="button" class="pb-btn pb-btn-primary" data-pick="upload">⬆ Upload new</button>'
       + '<input type="search" placeholder="Search your images…" aria-label="Search images" data-pick="q"></div>'
       + '<input type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden data-pick="file">'
       + '<div class="pb-picker-grid" data-pick="grid"></div>'
-      + '<p class="pb-picker-foot"><button type="button" class="pb-btn pb-btn-sm" data-pick="more" hidden>Load more</button></p></div>';
+      + '<div class="pb-picker-foot"><button type="button" class="pb-btn pb-btn-sm" data-pick="more" hidden>Load more</button>'
+      + '<span class="pb-small pb-muted" data-pick="hint" hidden>Tap photos in the order you want them.</span>'
+      + '<button type="button" class="pb-btn pb-btn-primary" data-pick="insert" hidden disabled>Insert</button></div></div>';
     document.body.appendChild(picker);
     const q = $('[data-pick="q"]', picker);
     const file = $('[data-pick="file"]', picker);
@@ -255,22 +263,60 @@
     q.addEventListener('input', () => { clearTimeout(pickerTimer); pickerTimer = setTimeout(() => loadPicker(true), 220); });
     $('[data-pick="more"]', picker).addEventListener('click', () => loadPicker(false));
     $('[data-pick="close"]', picker).addEventListener('click', closePicker);
+    $('[data-pick="insert"]', picker).addEventListener('click', () => { if (pickerSel.length) choosePicked(pickerSel.slice()); });
     picker.addEventListener('click', (e) => {
       if (e.target === picker) { closePicker(); return; }
       const tile = e.target.closest('[data-url]');
-      if (tile) choosePicked({ url: tile.dataset.url, width: Number(tile.dataset.w), height: Number(tile.dataset.h) });
+      if (!tile) return;
+      const item = { url: tile.dataset.url, width: Number(tile.dataset.w), height: Number(tile.dataset.h) };
+      if (!pickerMulti) { choosePicked(item); return; }
+      const at = pickerSel.findIndex((s) => s.url === item.url);
+      if (at >= 0) pickerSel.splice(at, 1); else pickerSel.push(item);
+      paintSelection();
     });
     picker.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); closePicker(); } });
     up.addEventListener('click', () => file.click());
     file.addEventListener('change', () => {
-      const chosen = file.files[0];
+      const files = Array.from(file.files || []);
       file.value = '';
-      if (!chosen) return;
+      if (!files.length) return;
       up.disabled = true;
-      up.textContent = 'Uploading…';
-      upload(chosen, pickerKeep).then((r) => choosePicked(r)).catch((err) => window.alert(err.message))
-        .finally(() => { up.disabled = false; up.textContent = '⬆ Upload new'; });
+      const grid = $('[data-pick="grid"]', picker);
+      let failed = 0;
+      // One at a time: each photo is shrunk on the phone first, so a slow connection never gets 8 big uploads at once.
+      const next = (i) => {
+        if (i >= files.length) {
+          up.disabled = false;
+          up.textContent = '⬆ Upload new';
+          if (failed) toast(failed + ' of ' + files.length + ' images could not be uploaded.', true);
+          return;
+        }
+        up.textContent = files.length > 1 ? 'Uploading ' + (i + 1) + ' of ' + files.length + '…' : 'Uploading…';
+        upload(files[i], pickerKeep).then((r) => {
+          if (!pickerMulti) { choosePicked(r); return; }
+          if (!$('.pb-picker-tile', grid)) grid.innerHTML = '';
+          grid.insertAdjacentHTML('afterbegin', tileHtml({ url: r.url, width: r.width, height: r.height, name: files[i].name }));
+          pickerSel.push({ url: r.url, width: r.width, height: r.height });
+          paintSelection();
+          next(i + 1);
+        }).catch((err) => {
+          failed++;
+          if (!pickerMulti || files.length === 1) { window.alert(err.message); up.disabled = false; up.textContent = '⬆ Upload new'; return; }
+          next(i + 1);
+        });
+      };
+      next(0);
     });
+  }
+  function paintSelection() {
+    $all('.pb-picker-tile', picker).forEach((t) => {
+      const n = pickerSel.findIndex((s) => s.url === t.dataset.url);
+      t.classList.toggle('is-picked', n >= 0);
+      $('.pb-picker-num', t).textContent = n >= 0 ? String(n + 1) : '';
+    });
+    const ins = $('[data-pick="insert"]', picker);
+    ins.disabled = !pickerSel.length;
+    ins.textContent = pickerSel.length > 1 ? 'Insert ' + pickerSel.length + ' as a gallery' : 'Insert';
   }
   function loadPicker(reset) {
     const grid = $('[data-pick="grid"]', picker);
@@ -279,17 +325,23 @@
     const q = $('[data-pick="q"]', picker).value.trim();
     fetch(PB.adminUrl + '?ajax=media&pg=' + pickerPage + '&q=' + encodeURIComponent(q), { credentials: 'same-origin' })
       .then((r) => r.json()).then((j) => {
-        const html = (j.items || []).map((it) => '<button type="button" class="pb-picker-tile" data-url="' + esc(it.url) + '" data-w="' + Number(it.width) + '" data-h="' + Number(it.height) + '" title="' + esc(it.name) + '">'
-          + '<img src="' + esc(it.url) + '" alt="" loading="lazy" decoding="async"><span>' + esc(it.name) + '</span></button>').join('');
-        if (reset) grid.innerHTML = html || '<p class="pb-muted pb-small">' + (q ? 'No images match.' : 'No images yet. Upload one.') + '</p>';
+        const html = (j.items || []).map(tileHtml).join('');
+        if (reset) grid.innerHTML = html || '<p class="pb-muted pb-small">' + (q ? 'No images match.' : 'No images yet. Upload some.') + '</p>';
         else grid.insertAdjacentHTML('beforeend', html);
         more.hidden = !j.more;
+        paintSelection();
       }).catch(() => { if (reset) grid.innerHTML = '<p class="pb-muted pb-small">Could not load the library.</p>'; });
   }
-  function openMediaPicker(onPick, keepFormat) {
+  function openMediaPicker(onPick, keepFormat, multi) {
     if (!picker) buildPicker();
     pickerDone = onPick;
     pickerKeep = !!keepFormat;
+    pickerMulti = !!multi;
+    pickerSel = [];
+    $('[data-pick="file"]', picker).multiple = pickerMulti;
+    $('[data-pick="insert"]', picker).hidden = !pickerMulti;
+    $('[data-pick="hint"]', picker).hidden = !pickerMulti;
+    $('[data-pick="title"]', picker).textContent = pickerMulti ? 'Choose images' : 'Choose an image';
     picker.hidden = false;
     document.body.classList.add('pb-noscroll');
     $('[data-pick="q"]', picker).value = '';
@@ -664,11 +716,19 @@
         return;
       case 'image':
         saveSelection();
-        openMediaPicker((img) => {
-          const alt = window.prompt('Describe this image (alt text, helps accessibility and Google):', '') || '';
-          insertHtml('<figure class="pb-figure pb-w-full"><img src="' + esc(img.url) + '" alt="' + esc(alt) + '"'
-            + (img.width ? ' width="' + Number(img.width) + '" height="' + Number(img.height) + '"' : '') + '></figure><p><br></p>');
-        });
+        openMediaPicker((picked) => {
+          const imgs = Array.isArray(picked) ? picked : [picked];
+          const size = (im) => (im.width ? ' width="' + Number(im.width) + '" height="' + Number(im.height) + '"' : '');
+          if (imgs.length === 1) {
+            const alt = window.prompt('Describe this image (alt text, helps accessibility and Google):', '') || '';
+            insertHtml('<figure class="pb-figure pb-w-full"><img src="' + esc(imgs[0].url) + '" alt="' + esc(alt) + '"' + size(imgs[0]) + '></figure><p><br></p>');
+            return;
+          }
+          // Several photos: one gallery block, one question (each photo gets "…, photo 2 of 8").
+          const alt = (window.prompt('Describe these ' + imgs.length + ' photos (alt text), e.g. "Café Goodluck, Pune":', '') || '').trim();
+          insertHtml('<figure class="pb-gallery">' + imgs.map((im, i) => '<img src="' + esc(im.url) + '" alt="'
+            + esc(alt ? alt + ', photo ' + (i + 1) + ' of ' + imgs.length : '') + '"' + size(im) + '>').join('') + '</figure><p><br></p>');
+        }, false, true);
         return;
       case 'video':
         saveSelection();
@@ -896,7 +956,9 @@
     current = fig;
     fig.classList.add('pb-selected');
     const isImage = fig.classList.contains('pb-figure');
+    const isGallery = fig.classList.contains('pb-gallery'); // a gallery: caption and remove only
     $all('[data-align],[data-size],[data-img-act="alt"],[data-img-act="caption"],.pb-imgbar-label,.pb-imgbar-sep', bar).forEach((el) => { el.hidden = !isImage; });
+    if (isGallery) $('[data-img-act="caption"]', bar).hidden = false;
     if (isImage) {
       $all('[data-align]', bar).forEach((b) => b.classList.toggle('on', b.dataset.align === figAlign(fig)));
       $all('[data-size]', bar).forEach((b) => b.classList.toggle('on', b.dataset.size === figSize(fig)));
@@ -912,6 +974,7 @@
   editor.addEventListener('click', (e) => {
     const img = e.target.closest('img');
     const fig = e.target.closest('figure');
+    if (fig && fig.classList.contains('pb-gallery') && editor.contains(fig)) { showImgBar(fig); return; } // the whole gallery, not one photo
     if (img && editor.contains(img)) { showImgBar(ensureFigure(img)); return; }
     if (fig && editor.contains(fig)) { showImgBar(fig); return; }
     hideImgBar();

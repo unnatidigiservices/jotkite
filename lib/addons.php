@@ -55,6 +55,70 @@ function pb_addon_error($e, $where) {
     error_log('[JotKite addon] ' . $msg);
 }
 
+function pb_has_action($hook) {
+    return !empty($GLOBALS['pb_hooks']['action'][$hook]);
+}
+
+// ------------------------------------------------- admin pages, routes, data
+// Addons can add a page to the admin menu, answer public addresses, and keep
+// their own database tables. See docs/ADDONS.md.
+$GLOBALS['pb_admin_pages'] = [];
+$GLOBALS['pb_routes'] = [];
+
+/**
+ * An admin page: a menu item that opens /admin/?view=$key.
+ * $render(array $user) prints the page; $perm is a pb_can() permission
+ * (e.g. 'post.create' for every writer, 'settings.manage' for Admins).
+ */
+function pb_add_admin_page($key, $label, $icon, callable $render, $perm = 'post.create') {
+    if (!preg_match('/^[a-z][a-z0-9-]{1,30}$/', (string) $key)
+        || in_array($key, ['edit', 'posts', 'pages', 'media', 'categories', 'users', 'settings', 'account'], true)) return false; // built-in pages
+    $GLOBALS['pb_admin_pages'][$key] = ['label' => (string) $label, 'icon' => (string) $icon, 'render' => $render, 'perm' => (string) $perm];
+    return true;
+}
+function pb_admin_pages() {
+    return $GLOBALS['pb_admin_pages'];
+}
+
+/**
+ * A public address: /$prefix/… (or ?route=$prefix/…) is answered by
+ * $handler(array $parts, int $page), which prints the page — usually with
+ * pb_render_page() — and returns true; return false to let JotKite show
+ * "not found". Posts can't take a slug that equals a route prefix.
+ */
+function pb_add_route($prefix, callable $handler) {
+    $prefix = strtolower((string) $prefix);
+    if (!preg_match('/^[a-z0-9][a-z0-9-]{1,40}$/', $prefix) || in_array($prefix, PB_RESERVED_SLUGS, true)) return false;
+    $GLOBALS['pb_routes'][$prefix] = $handler;
+    return true;
+}
+function pb_routes() {
+    return $GLOBALS['pb_routes'];
+}
+
+/**
+ * An addon's own tables, created and upgraded once per version:
+ *   pb_addon_migrate('places', 2, function (PDO $db, $from) { if ($from < 1) {…} if ($from < 2) {…} });
+ * Runs in a transaction; the version is remembered in the settings table.
+ */
+function pb_addon_migrate($slug, $version, callable $fn) {
+    $key = 'addon:' . $slug . ':schema';
+    $from = (int) pb_setting($key);
+    if ($from >= (int) $version) return true;
+    $db = pb_db();
+    $db->beginTransaction();
+    try {
+        $fn($db, $from);
+        $db->commit();
+    } catch (Throwable $e) {
+        $db->rollBack();
+        pb_addon_error($e, 'migrate ' . $slug);
+        return false;
+    }
+    pb_settings_save([$key => (string) (int) $version]);
+    return true;
+}
+
 // --------------------------------------------------------------- discovery
 /** All addons found in addons/, keyed by slug. Invalid manifests are listed with an 'error'. */
 function pb_addons() {
