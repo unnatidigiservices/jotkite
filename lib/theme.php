@@ -130,6 +130,10 @@ function pb_render_page(array $meta, $content) {
     if (strpos($content, 'class="pb-gallery"') !== false) {
         $bodyEnd .= '<script src="' . pb_e(PB_BASE_PATH . '/assets/gallery.js?v=' . PB_VERSION) . '" defer></script>' . "\n";
     }
+    // Likes, sharing and comments (lib/engage.php): only under posts.
+    if (strpos($content, 'class="pb-engage"') !== false) {
+        $bodyEnd .= '<script src="' . pb_e(PB_BASE_PATH . '/assets/engage.js?v=' . PB_VERSION) . '" defer></script>' . "\n";
+    }
     $tail .= pb_demo_public_head();    // demo sites (lib/demo.php): noindex…
     $bodyEnd .= pb_demo_public_bar();  // …and a "Try the admin" bar
 

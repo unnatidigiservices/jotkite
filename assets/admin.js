@@ -652,7 +652,7 @@
   if (typeSel) {
     typeSel.addEventListener('change', () => {
       const page = typeSel.value === 'page';
-      ['#pbPinWrap', '#pbCatWrap'].forEach((s) => { const el = $(s); if (el) el.hidden = page; });
+      ['#pbPinWrap', '#pbCatWrap', '#pbCommentsWrap'].forEach((s) => { const el = $(s); if (el) el.hidden = page; });
       if (title) title.placeholder = page ? 'Page title (e.g. About)' : 'Your next post…';
     });
   }

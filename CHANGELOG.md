@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.28.0 — 2026-10-06
+
+- **Comments.**
+  - Under every blog post (not Pages), with **one level of replies**.
+  - **Signed-in writers** (any role) comment as themselves. Their comments go live at once, and their links are clickable (`nofollow ugc`).
+  - **Visitors** comment with a display name. By default an Editor or Admin approves each one first; Authors approve those on their own posts.
+  - Visitors' comments are **plain text only**: HTML, links, email addresses, code and invisible characters are removed, and the visitor is told.
+  - **Spam traps, no CAPTCHA:** a hidden honeypot field, a signed form that refuses posts sent within 3 seconds, at most 3 comments in 10 minutes per address, duplicate checks, and staff names can't be borrowed.
+  - **Email updates:** after posting, a visitor can leave an email to hear when the comment is approved and when someone replies. It's never shown, has one-click unsubscribe, and is deleted after 6 months.
+  - Works without JavaScript too.
+- **Admin → Comments:** Pending, Approved, Spam and Trash tabs, a count badge in the menu, approve with one tap, and reply from the queue (which also approves).
+  - Moderators get an email when comments are waiting, at most once an hour.
+  - Each post has an **Allow comments** switch.
+  - Settings → **Comments & email**: moderation, closing comments after N days, likes and share.
+- **❤️ Likes** on posts: no sign-in, one per browser, tap again to undo. The count is also in the post's structured data.
+- **Share:** the phone's own share sheet, or WhatsApp, Facebook, X, LinkedIn, Telegram, email and Copy link on desktop. Plain links, no tracking scripts.
+- **Sending email:** Settings → Comments & email → SMTP (for example a Hostinger mailbox: smtp.hostinger.com, SSL, port 465) or PHP mail().
+  - *Send a test to me* gives clear errors.
+  - Mail goes out after the page has loaded, so it never slows visitors down.
+  - The password can live in `config.php` (`smtp_pass`).
+- Addon hooks: `pb_comment_form`, `pb_comment_check`, `pb_comment_saved`, `pb_comment_approved`, `pb_comment_html`.
+- Database schema v7 (`comments`, `post_likes`, `posts.comments_open`), applied automatically.
+
 ## 0.27.0 — 2026-10-04
 
 - **Photo galleries.**

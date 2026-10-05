@@ -16,6 +16,10 @@ return [
     'max_upload_mb' => 5,
     'max_image_px'  => 1600,
 
+    // Optional: the SMTP mailbox password (Settings → Comments & email) kept here
+    // instead of the database. When set, the Settings field is ignored.
+    // 'smtp_pass' => '',
+
     // Public demo site ("try it" install, e.g. demo.jotkite.com). NEVER on a real blog:
     // visitors sign in with one click as Admin/Editor/Contributor, and every
     // demo_reset_minutes the database and uploads/ go back to a saved starting

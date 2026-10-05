@@ -19,6 +19,9 @@ require PB_ROOT . '/lib/postbase.php';
 require PB_ROOT . '/lib/theme.php';
 pb_load_plugins();
 
+// Comments, likes, unsubscribe (lib/engage.php): index.php?engage=…
+if (isset($_GET['engage'])) pb_engage_route((string) $_GET['engage']);
+
 // ---- route -----------------------------------------------------------------
 $route = (string) ($_GET['route'] ?? '');
 if ($route === '' && !isset($_GET['p']) && !isset($_GET['c']) && !isset($_GET['feed'])) {
@@ -230,6 +233,11 @@ if ($view === 'post') {
             ? array_filter(['@type' => 'Person', 'name' => $au['name'], 'url' => $au['url'] !== '' ? pb_abs_url($au['url']) : null])
             : ['@type' => 'Organization', 'name' => pb_setting('blog_title')];
         if ($shareImg !== '') $jsonld['image'] = pb_abs_url($shareImg);
+        $nComments = pb_comments_enabled() ? pb_comment_count($post['id']) : 0;
+        if ($nComments) $jsonld['commentCount'] = $nComments;
+        if (pb_likes_enabled() && ($nLikes = pb_like_count($post['id']))) {
+            $jsonld['interactionStatistic'] = ['@type' => 'InteractionCounter', 'interactionType' => 'https://schema.org/LikeAction', 'userInteractionCount' => $nLikes];
+        }
 
         $prev = $next = null;
         if (!$preview) {
@@ -254,7 +262,7 @@ if ($view === 'post') {
       <p class="pb-meta">
 <?php if ($au['name'] !== ''): ?>By <?= $au['url'] !== '' ? '<a href="' . pb_e($au['url']) . '" rel="author">' . pb_e($au['name']) . '</a>' : pb_e($au['name']) ?> &middot; <?php endif; ?>
 <?php if ($post['published_at']): ?><time datetime="<?= pb_e(str_replace(' ', 'T', $post['published_at']) . 'Z') ?>"><?= pb_e(pb_format_date($post['published_at'])) ?></time> &middot; <?php endif; ?>
-        <?= pb_reading_minutes($post['body']) ?> min read</p>
+        <?= pb_reading_minutes($post['body']) ?> min read<?php if ($nComments && !$preview): ?> &middot; <a href="#comments"><?= $nComments ?> comment<?= $nComments === 1 ? '' : 's' ?></a><?php endif; ?></p>
     </header>
 <?php if ($img !== ''): ?>
     <figure class="pb-cover"><img src="<?= pb_e($img) ?>" alt="<?= pb_e($post['cover_alt'] !== '' ? $post['cover_alt'] : $post['title']) ?>"<?= pb_img_dims($img) ?> fetchpriority="high"></figure>
@@ -264,6 +272,7 @@ if ($view === 'post') {
     </div>
 <?= $au['box'] ? pb_author_box_html($au) : '' ?>
   </article>
+<?= pb_engage_html($post) /* like, share, comments */ ?>
 <?php if ($prev || $next): ?>
   <nav class="pb-prevnext" aria-label="More posts">
     <?php if ($next): ?><a class="pb-next" href="<?= pb_e(pb_url('post', $next['slug'])) ?>"><small>Newer</small><?= pb_e($next['title']) ?></a><?php else: ?><span></span><?php endif; ?>

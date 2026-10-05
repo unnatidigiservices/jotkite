@@ -641,6 +641,78 @@ if ($isPost) {
         pb_redirect('view=account');
     }
 
+    // ---- comments (lib/engage.php) ----
+    $cBack = function () {
+        $tab = preg_replace('/[^a-z]/', '', (string) ($_POST['back_tab'] ?? 'pending'));
+        $pg = max(1, (int) ($_POST['back_pg'] ?? 1));
+        pb_redirect('view=comments&tab=' . $tab . ($pg > 1 ? '&pg=' . $pg : '') . (!empty($_POST['anchor']) ? '#c' . (int) $_POST['anchor'] : ''));
+    };
+    if ($do === 'comment_status' || $do === 'comment_delete') {
+        $c = pb_comment_by_id((int) ($_POST['id'] ?? 0));
+        $to = (string) ($_POST['status'] ?? '');
+        $err = $do === 'comment_delete' ? pb_comment_delete($user, $c) : pb_comment_set_status($user, $c, $to);
+        if ($err) pb_flash($err, 'error');
+        else pb_flash($do === 'comment_delete' ? 'Comment deleted.' : ['approved' => 'Approved. It\'s on the post now.', 'spam' => 'Marked as spam.', 'trash' => 'Moved to trash.', 'pending' => 'Moved back to Pending.'][$to]);
+        $cBack();
+    }
+    if ($do === 'comment_reply') {
+        $c = pb_comment_by_id((int) ($_POST['id'] ?? 0));
+        $post = $c ? pb_post_by_id($c['post_id']) : null;
+        if (!$c || !pb_can_moderate($user, $post)) { pb_flash('You can\'t reply to this comment here.', 'error'); $cBack(); }
+        if ($c['status'] !== 'approved') pb_comment_set_status($user, $c, 'approved'); // replying approves it
+        $r = pb_comment_add($post, $user, ['body' => (string) ($_POST['body'] ?? ''), 'parent' => $c['id']]);
+        pb_flash(isset($r['error']) ? $r['error'] : 'Reply posted' . ($c['status'] !== 'approved' ? ', and the comment approved.' : '.'), isset($r['error']) ? 'error' : 'ok');
+        $cBack();
+    }
+    if ($do === 'comment_empty' && pb_can_moderate($user)) {
+        $which = ($_POST['which'] ?? '') === 'trash' ? 'trash' : 'spam';
+        $mine = in_array($user['role'], ['editor', 'admin'], true) ? '' : ' AND post_id IN (SELECT id FROM posts WHERE author_id = ' . (int) $user['id'] . ')';
+        $n = pb_q("DELETE FROM comments WHERE status = ?$mine", [$which])->rowCount();
+        pb_flash('Deleted ' . $n . ' comment' . ($n === 1 ? '' : 's') . '.');
+        pb_redirect('view=comments&tab=' . $which);
+    }
+    if ($do === 'engage_save' && pb_can($user, 'settings.manage')) {
+        pb_settings_save([
+            'comments_enabled' => !empty($_POST['comments_enabled']) ? '1' : '0',
+            'comments_moderation' => ($_POST['comments_moderation'] ?? '') === 'off' ? 'off' : 'public',
+            'comments_close_days' => (string) max(0, min(3650, (int) ($_POST['comments_close_days'] ?? 0))),
+            'comments_notify' => !empty($_POST['comments_notify']) ? '1' : '0',
+            'likes_enabled' => !empty($_POST['likes_enabled']) ? '1' : '0',
+            'share_enabled' => !empty($_POST['share_enabled']) ? '1' : '0',
+        ]);
+        pb_flash('Comment settings saved.');
+        pb_redirect('view=settings&tab=engage');
+    }
+    if (($do === 'mail_save' || $do === 'mail_test') && pb_can($user, 'settings.manage')) {
+        if (pb_demo_locked()) { pb_flash('Email settings are locked in the demo.', 'info'); pb_redirect('view=settings&tab=engage'); }
+        { // "Send a test" saves the form first, so it tests what's on screen
+            $sec = in_array($_POST['smtp_secure'] ?? '', ['ssl', 'tls', 'none'], true) ? $_POST['smtp_secure'] : 'ssl';
+            $from = trim((string) ($_POST['mail_from'] ?? ''));
+            $save = [
+                'mail_mode' => in_array($_POST['mail_mode'] ?? '', ['off', 'smtp', 'php'], true) ? $_POST['mail_mode'] : 'off',
+                'smtp_host' => preg_replace('/[^a-z0-9.\-]/i', '', (string) ($_POST['smtp_host'] ?? '')),
+                'smtp_port' => (string) max(1, min(65535, (int) ($_POST['smtp_port'] ?? 465))),
+                'smtp_secure' => $sec,
+                'smtp_user' => trim((string) ($_POST['smtp_user'] ?? '')),
+                'mail_from' => filter_var($from, FILTER_VALIDATE_EMAIL) ? $from : '',
+                'mail_from_name' => substr(trim(str_replace(["\r", "\n"], ' ', (string) ($_POST['mail_from_name'] ?? ''))), 0, 80),
+                'mail_last_error' => '',
+            ];
+            if ((string) ($_POST['smtp_pass'] ?? '') !== '') $save['smtp_pass'] = (string) $_POST['smtp_pass']; // blank keeps the saved one
+            if (!empty($_POST['smtp_pass_clear'])) $save['smtp_pass'] = '';
+            pb_settings_save($save);
+            if ($do === 'mail_save') pb_flash('Email settings saved. Send a test to check them.');
+        }
+        if ($do === 'mail_test') {
+            $err = pb_mail_deliverable($user['email']) ? pb_mail($user['email'], 'Test email from ' . pb_setting('blog_title'),
+                "It works! JotKite can send email from this site.\n\nComment notifications will come from " . pb_mail_from() . '.')
+                : 'Your account has no real email address. Add one in My account first.';
+            pb_settings_save(['mail_last_error' => $err ? gmdate('Y-m-d H:i') . ' UTC · ' . $err : '']);
+            pb_flash($err ? 'Test failed: ' . $err : 'Test email sent to ' . $user['email'] . '. Check the inbox (and the spam folder).', $err ? 'error' : 'ok');
+        }
+        pb_redirect('view=settings&tab=engage#mail');
+    }
+
     // Addons handle their own forms: pb_add_action('pb_admin_post', function ($do, $user) {…}).
     // CSRF is already checked; handle your own "do" values and pb_redirect().
     pb_do_action('pb_admin_post', $do, $user);
@@ -654,6 +726,8 @@ if ($isPost) {
 $isEditor = pb_can($user, 'category.manage');
 $pendingCount = $isEditor ? (int) pb_val("SELECT COUNT(*) FROM posts WHERE status = 'pending'") : 0;
 $myChanges = (int) pb_val("SELECT COUNT(*) FROM posts WHERE status = 'changes_requested' AND author_id = ?", [$user['id']]);
+$commentsWaiting = !pb_can_moderate($user) ? 0 : (int) pb_val("SELECT COUNT(*) FROM comments c JOIN posts p ON p.id = c.post_id WHERE c.status = 'pending'"
+    . (in_array($user['role'], ['editor', 'admin'], true) ? '' : ' AND p.author_id = ' . (int) $user['id']));
 
 ob_start();
 $title = 'Posts';
@@ -810,6 +884,9 @@ if ($view === 'edit') {
       <label class="pb-small">Excerpt <span class="pb-muted pb-count" data-for="pbExcerpt" data-max="200"></span>
         <textarea name="excerpt" id="pbExcerpt" rows="3" maxlength="300" placeholder="Short summary for the post list (optional)" <?= $canEdit ? '' : 'readonly' ?>><?= pb_e($p['excerpt']) ?></textarea>
       </label>
+      <?php if (pb_comments_enabled()): ?>
+      <label class="pb-check pb-small" id="pbCommentsWrap"<?= $isPage ? ' hidden' : '' ?>><input type="hidden" name="comments_present" value="1"><input type="checkbox" name="comments_open" value="1"<?= (int) ($p['comments_open'] ?? 1) === 1 ? ' checked' : '' ?> <?= $canEdit ? '' : 'disabled' ?>> 💬 Allow comments</label>
+      <?php endif; ?>
     </div>
 
     <details class="pb-card">
@@ -855,6 +932,80 @@ if ($view === 'edit') {
   <?php foreach (['withdraw', 'unpublish', 'archive', 'restore', 'delete'] as $act): ?>
   <form method="post" id="pbAct_<?= $act ?>" hidden><?= pb_csrf_field() ?><input type="hidden" name="do" value="transition"><input type="hidden" name="id" value="<?= (int) $post['id'] ?>"><input type="hidden" name="action" value="<?= $act ?>"></form>
   <?php endforeach; ?>
+<?php endif; ?>
+<?php
+
+} elseif ($view === 'comments' && pb_can_moderate($user)) {
+    $title = 'Comments';
+    $ctabs = ['pending' => 'Pending', 'approved' => 'Approved', 'spam' => 'Spam', 'trash' => 'Trash'];
+    $ctab = isset($ctabs[$_GET['tab'] ?? '']) ? $_GET['tab'] : 'pending';
+    $mineOnly = !in_array($user['role'], ['editor', 'admin'], true); // Authors: comments on their own posts
+    $cw = $mineOnly ? ' AND p.author_id = ' . (int) $user['id'] : '';
+    $counts = [];
+    foreach (pb_all("SELECT c.status, COUNT(*) AS n FROM comments c JOIN posts p ON p.id = c.post_id WHERE 1 = 1$cw GROUP BY c.status") as $r) $counts[$r['status']] = (int) $r['n'];
+    $per = 30;
+    $cpg = max(1, (int) ($_GET['pg'] ?? 1));
+    $rows = pb_all("SELECT c.*, p.title AS post_title, p.slug AS post_slug, u.avatar AS user_avatar, u.role AS user_role, pc.name AS parent_name
+                    FROM comments c JOIN posts p ON p.id = c.post_id LEFT JOIN users u ON u.id = c.user_id LEFT JOIN comments pc ON pc.id = c.parent_id
+                    WHERE c.status = :st$cw ORDER BY c.id " . ($ctab === 'pending' ? 'ASC' : 'DESC') . ' LIMIT :lim OFFSET :off',
+                    ['st' => $ctab, 'lim' => $per + 1, 'off' => ($cpg - 1) * $per]);
+    $more = count($rows) > $per;
+    $rows = array_slice($rows, 0, $per);
+    $hidden = function ($id, $extra = '') use ($ctab, $cpg) {
+        return pb_csrf_field() . '<input type="hidden" name="id" value="' . (int) $id . '"><input type="hidden" name="back_tab" value="' . $ctab . '">'
+             . '<input type="hidden" name="back_pg" value="' . $cpg . '">' . $extra;
+    }; ?>
+<div class="pb-tabs">
+  <?php foreach ($ctabs as $k => $label): ?>
+    <a href="<?= pb_e(pb_admin_url('view=comments&tab=' . $k)) ?>" class="<?= $k === $ctab ? 'active' : '' ?>"><?= $label ?><?php if (!empty($counts[$k])): ?><span><?= $counts[$k] ?></span><?php endif; ?></a>
+  <?php endforeach; ?>
+</div>
+<?php if (!pb_comments_enabled() && pb_can($user, 'settings.manage')): ?><div class="pb-note pb-note-info pb-small">Comments are switched off for the whole blog. <a href="<?= pb_e(pb_admin_url('view=settings&tab=engage')) ?>">Settings → Comments &amp; email</a></div><?php endif; ?>
+<?php if ($rows): ?>
+<?php if (in_array($ctab, ['spam', 'trash'], true)): ?>
+  <form method="post" class="pb-row pb-comment-empty"><?= pb_csrf_field() ?><input type="hidden" name="do" value="comment_empty"><input type="hidden" name="which" value="<?= $ctab ?>">
+    <button class="pb-btn pb-btn-sm pb-btn-danger" data-confirm="Delete every comment in <?= $ctabs[$ctab] ?> for good?"><?= $ctab === 'spam' ? 'Delete all spam' : 'Empty trash' ?></button></form>
+<?php endif; ?>
+<div class="pb-comment-list">
+<?php foreach ($rows as $c): $guest = !$c['user_id']; ?>
+  <article class="pb-card pb-cmt" id="c<?= (int) $c['id'] ?>">
+    <header class="pb-cmt-head">
+      <strong><?= pb_e($c['name']) ?></strong>
+      <span class="pb-small pb-muted"><?= $guest ? 'Visitor' : pb_e(pb_role_label($c['user_role'] ?? '')) ?><?= $guest && (int) $c['notify'] === 1 ? ' · 📧 wants email updates' : '' ?></span>
+      <span class="pb-small pb-muted pb-cmt-when"><?= pb_e(pb_format_date($c['created_at'], 'j M Y, g:i a')) ?></span>
+    </header>
+    <p class="pb-small pb-muted pb-cmt-on">on <a href="<?= pb_e(pb_url('post', $c['post_slug'])) ?>#comment-<?= (int) $c['id'] ?>" target="_blank" rel="noopener"><?= pb_e($c['post_title']) ?></a><?php if ($c['parent_name']): ?> · reply to <?= pb_e($c['parent_name']) ?><?php endif; ?></p>
+    <div class="pb-cmt-body"><?= pb_comment_body_html($c['body'], !$guest) ?></div>
+    <div class="pb-row pb-cmt-actions">
+      <?php $acts = ['pending' => ['approved' => 'Approve', 'spam' => 'Spam', 'trash' => 'Trash'], 'approved' => ['pending' => 'Unapprove', 'spam' => 'Spam', 'trash' => 'Trash'],
+                     'spam' => ['pending' => 'Not spam'], 'trash' => ['pending' => 'Restore']][$ctab];
+      foreach ($acts as $to => $label): ?>
+      <form method="post" class="pb-inline"><?= $hidden($c['id'], '<input type="hidden" name="do" value="comment_status"><input type="hidden" name="status" value="' . $to . '">') ?>
+        <button class="pb-btn pb-btn-sm<?= $to === 'approved' ? ' pb-btn-primary' : '' ?>"><?= $label ?></button></form>
+      <?php endforeach; ?>
+      <?php if (in_array($ctab, ['spam', 'trash'], true)): ?>
+      <form method="post" class="pb-inline"><?= $hidden($c['id'], '<input type="hidden" name="do" value="comment_delete">') ?>
+        <button class="pb-btn pb-btn-sm pb-btn-danger" data-confirm="Delete this comment for good? Replies to it go too.">Delete forever</button></form>
+      <?php endif; ?>
+    </div>
+    <?php if (in_array($ctab, ['pending', 'approved'], true)): ?>
+    <details class="pb-cmt-reply"><summary class="pb-small">Reply<?= $ctab === 'pending' ? ' (and approve)' : '' ?></summary>
+      <form method="post"><?= $hidden($c['id'], '<input type="hidden" name="do" value="comment_reply"><input type="hidden" name="anchor" value="' . (int) $c['id'] . '">') ?>
+        <textarea name="body" rows="3" required placeholder="Your reply, as <?= pb_e($user['name']) ?>"></textarea>
+        <button class="pb-btn pb-btn-sm pb-btn-primary">Post reply</button></form>
+    </details>
+    <?php endif; ?>
+  </article>
+<?php endforeach; ?>
+</div>
+<?php if ($cpg > 1 || $more): ?>
+<nav class="pb-row pb-pager-admin">
+  <?php if ($cpg > 1): ?><a class="pb-btn pb-btn-sm" href="<?= pb_e(pb_admin_url('view=comments&tab=' . $ctab . '&pg=' . ($cpg - 1))) ?>">← Previous</a><?php endif; ?>
+  <?php if ($more): ?><a class="pb-btn pb-btn-sm" href="<?= pb_e(pb_admin_url('view=comments&tab=' . $ctab . '&pg=' . ($cpg + 1))) ?>">Next →</a><?php endif; ?>
+</nav>
+<?php endif; ?>
+<?php else: ?>
+  <div class="pb-empty-admin"><p><?= ['pending' => 'No comments waiting. 🎉', 'approved' => 'No approved comments yet.', 'spam' => 'No spam.', 'trash' => 'Trash is empty.'][$ctab] ?></p></div>
 <?php endif; ?>
 <?php
 
@@ -946,7 +1097,7 @@ if ($view === 'edit') {
 } elseif ($view === 'settings' && pb_can($user, 'settings.manage')) {
     $title = 'Settings';
     $s = function ($k) { return pb_setting($k); };
-    $stabs = ['general' => 'General', 'design' => 'Design', 'navigation' => 'Navigation', 'code' => 'Code', 'addons' => 'Addons'] + (pb_demo_on() ? ['demo' => 'Demo'] : []);
+    $stabs = ['general' => 'General', 'design' => 'Design', 'navigation' => 'Navigation', 'engage' => 'Comments & email', 'code' => 'Code', 'addons' => 'Addons'] + (pb_demo_on() ? ['demo' => 'Demo'] : []);
     $stab = isset($stabs[$_GET['tab'] ?? '']) ? $_GET['tab'] : 'general';
     $isGr = pb_is_georank_site();
     // GeoRank options only where they mean something: on a GeoRank site, or while a
@@ -1036,6 +1187,60 @@ if ($view === 'edit') {
         <button class="pb-btn">Lock</button></form>
     <?php endif; ?>
   </div>
+</div>
+<?php elseif ($stab === 'engage'):
+    $mode = (string) $s('mail_mode');
+    $passSaved = (string) $s('smtp_pass') !== '' || (string) pb_config('smtp_pass') !== '';
+    $mailLocked = pb_demo_locked(); ?>
+<div class="pb-two-col">
+  <form method="post" class="pb-card">
+    <?= pb_csrf_field() ?><input type="hidden" name="do" value="engage_save">
+    <h3 class="pb-h3">Comments</h3>
+    <label class="pb-check"><input type="checkbox" name="comments_enabled" value="1"<?= $s('comments_enabled') === '1' ? ' checked' : '' ?>> Allow comments on blog posts</label>
+    <p class="pb-small pb-muted pb-hint">Each post can also switch them off (editor → Post details). Pages never have comments.</p>
+    <label>Visitors' comments<select name="comments_moderation">
+      <option value="public"<?= $s('comments_moderation') !== 'off' ? ' selected' : '' ?>>Wait for approval (recommended)</option>
+      <option value="off"<?= $s('comments_moderation') === 'off' ? ' selected' : '' ?>>Appear straight away</option>
+    </select><span class="pb-small pb-muted">Signed-in writers' comments always appear straight away. Editors and Admins approve visitors' comments; Authors approve those on their own posts.</span></label>
+    <label>Close comments on posts older than<span class="pb-row"><input type="number" name="comments_close_days" min="0" max="3650" value="<?= (int) $s('comments_close_days') ?>" style="max-width:110px"> <span class="pb-small pb-muted">days (0 = never)</span></span></label>
+    <label class="pb-check"><input type="checkbox" name="comments_notify" value="1"<?= $s('comments_notify') === '1' ? ' checked' : '' ?>> Email moderators when a comment is waiting <span class="pb-small pb-muted">(at most once an hour each)</span></label>
+    <h3 class="pb-h3">Likes &amp; sharing</h3>
+    <label class="pb-check"><input type="checkbox" name="likes_enabled" value="1"<?= $s('likes_enabled') === '1' ? ' checked' : '' ?>> ❤️ Like button on posts <span class="pb-small pb-muted">(no sign-in, one per browser)</span></label>
+    <label class="pb-check"><input type="checkbox" name="share_enabled" value="1"<?= $s('share_enabled') === '1' ? ' checked' : '' ?>> Share button <span class="pb-small pb-muted">(phone share sheet; WhatsApp, Facebook, X, LinkedIn, Telegram, email, copy link)</span></label>
+    <button class="pb-btn pb-btn-primary">Save</button>
+  </form>
+  <form method="post" class="pb-card" id="mail">
+    <?= pb_csrf_field() ?><input type="hidden" name="do" value="mail_save">
+    <h3 class="pb-h3">Sending email</h3>
+    <p class="pb-small pb-muted">Used to tell visitors their comment is live or got a reply, and moderators that comments are waiting. Off: visitors aren't offered email updates.</p>
+    <?php if ($mailLocked): ?><div class="pb-note pb-note-info pb-small">Read-only in the demo.</div><?php endif; ?>
+    <?php if ($s('mail_last_error') !== ''): ?><div class="pb-note pb-note-error pb-small">Last problem: <?= pb_e($s('mail_last_error')) ?></div><?php endif; ?>
+    <label>Send with<select name="mail_mode" id="pbMailMode">
+      <option value="off"<?= $mode === 'off' ? ' selected' : '' ?>>Off</option>
+      <option value="smtp"<?= $mode === 'smtp' ? ' selected' : '' ?>>SMTP: a real mailbox (recommended)</option>
+      <option value="php"<?= $mode === 'php' ? ' selected' : '' ?>>PHP mail() (simple, but often lands in spam)</option>
+    </select></label>
+    <div class="pb-row">
+      <label>SMTP server<input name="smtp_host" value="<?= pb_e($s('smtp_host')) ?>" placeholder="smtp.hostinger.com" autocapitalize="none" spellcheck="false"></label>
+      <label style="max-width:110px">Port<input type="number" name="smtp_port" value="<?= pb_e($s('smtp_port')) ?>"></label>
+      <label style="max-width:150px">Security<select name="smtp_secure">
+        <?php foreach (['ssl' => 'SSL (465)', 'tls' => 'STARTTLS (587)', 'none' => 'None'] as $k => $l): ?><option value="<?= $k ?>"<?= $s('smtp_secure') === $k ? ' selected' : '' ?>><?= $l ?></option><?php endforeach; ?>
+      </select></label>
+    </div>
+    <label>Mailbox (username)<input name="smtp_user" value="<?= pb_e($s('smtp_user')) ?>" placeholder="noreply@yoursite.com" autocomplete="off" autocapitalize="none" spellcheck="false"></label>
+    <label>Mailbox password<input type="password" name="smtp_pass" value="" placeholder="<?= $passSaved ? '•••••••• saved (leave blank to keep)' : '' ?>" autocomplete="new-password"></label>
+    <?php if ($passSaved && (string) pb_config('smtp_pass') === ''): ?><label class="pb-check pb-small"><input type="checkbox" name="smtp_pass_clear" value="1"> Forget the saved password</label><?php endif; ?>
+    <?php if ((string) pb_config('smtp_pass') !== ''): ?><p class="pb-small pb-muted pb-hint">The password comes from <code>config.php</code>.</p><?php endif; ?>
+    <div class="pb-row">
+      <label>From address<input name="mail_from" value="<?= pb_e($s('mail_from')) ?>" placeholder="<?= pb_e(pb_mail_from()) ?>" autocapitalize="none" spellcheck="false"></label>
+      <label>From name<input name="mail_from_name" value="<?= pb_e($s('mail_from_name')) ?>" placeholder="<?= pb_e($s('blog_title')) ?>"></label>
+    </div>
+    <p class="pb-small pb-muted pb-hint">Hostinger: create the mailbox in hPanel → Emails, then use smtp.hostinger.com, SSL, port 465, the full address as username and its password. The From address should be that same mailbox.</p>
+    <div class="pb-row">
+      <button class="pb-btn pb-btn-primary" <?= $mailLocked ? 'disabled' : '' ?>>Save email settings</button>
+      <button class="pb-btn" name="do" value="mail_test" <?= $mailLocked ? 'disabled' : '' ?> title="Sends to <?= pb_e($user['email']) ?>">Send a test to me</button>
+    </div>
+  </form>
 </div>
 <?php elseif ($stab === 'code'): ?>
 <div class="pb-two-col">
@@ -1466,6 +1671,7 @@ $nav = [
     ['edit', 'Write', '✏️', true],
     ['posts', $isEditor ? 'Posts' : 'My posts', '📄', true],
     ['pages', 'Pages', '📑', $isEditor],
+    ['comments', 'Comments', '💬', pb_can_moderate($user) && (pb_comments_enabled() || (int) pb_val('SELECT COUNT(*) FROM comments') > 0)],
     ['media', 'Media', '🖼️', true],
     ['categories', 'Categories', '🏷️', $isEditor],
     ['users', 'Users', '👥', pb_can($user, 'user.manage')],
@@ -1498,7 +1704,8 @@ foreach (pb_admin_pages() as $apKey => $ap) array_splice($nav, count($nav) - 1, 
         $active = $key === 'pages' ? ($view === 'posts' && $onPages)
                 : ($view === $key && !($key === 'edit' && (!empty($_GET['id']) || $onPages)) && !($key === 'posts' && $onPages)); ?>
         <a href="<?= pb_e(pb_admin_url($key === 'pages' ? 'view=posts&type=page' : 'view=' . $key)) ?>" class="<?= $active ? 'active' : '' ?>"><span aria-hidden="true"><?= $icon ?></span> <?= pb_e($label) ?>
-          <?php if ($key === 'posts' && ($pendingCount || $myChanges)): ?><em class="pb-count-badge" title="<?= $isEditor ? 'Waiting for your review' : 'Changes requested' ?>"><?= $isEditor ? $pendingCount : $myChanges ?></em><?php endif; ?></a>
+          <?php if ($key === 'posts' && ($pendingCount || $myChanges)): ?><em class="pb-count-badge" title="<?= $isEditor ? 'Waiting for your review' : 'Changes requested' ?>"><?= $isEditor ? $pendingCount : $myChanges ?></em><?php endif; ?>
+          <?php if ($key === 'comments' && $commentsWaiting): ?><em class="pb-count-badge" title="Comments waiting for approval"><?= $commentsWaiting ?></em><?php endif; ?></a>
       <?php endforeach; ?>
       <a href="<?= pb_e(pb_url()) ?>" target="_blank" rel="noopener" class="pb-nav-blog">View blog ↗</a>
     </nav>

@@ -72,7 +72,7 @@ $GLOBALS['pb_routes'] = [];
  */
 function pb_add_admin_page($key, $label, $icon, callable $render, $perm = 'post.create') {
     if (!preg_match('/^[a-z][a-z0-9-]{1,30}$/', (string) $key)
-        || in_array($key, ['edit', 'posts', 'pages', 'media', 'categories', 'users', 'settings', 'account'], true)) return false; // built-in pages
+        || in_array($key, ['edit', 'posts', 'pages', 'comments', 'media', 'categories', 'users', 'settings', 'account'], true)) return false; // built-in pages
     $GLOBALS['pb_admin_pages'][$key] = ['label' => (string) $label, 'icon' => (string) $icon, 'render' => $render, 'perm' => (string) $perm];
     return true;
 }

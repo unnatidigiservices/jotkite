@@ -10,10 +10,10 @@
  */
 if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 
-define('PB_VERSION', '0.27.0');
+define('PB_VERSION', '0.28.0');
 define('PB_HOMEPAGE', 'https://jotkite.com');                             // project info, docs and support
 define('PB_REPO_URL', 'https://github.com/unnatidigiservices/jotkite');    // source code and issues
-define('PB_SCHEMA_VERSION', 6);
+define('PB_SCHEMA_VERSION', 7);
 define('PB_DATA_DIR', PB_ROOT . '/data');
 define('PB_UPLOAD_DIR', PB_ROOT . '/uploads');
 // The site's web root: PB_ROOT itself when JotKite runs at a domain root
@@ -439,7 +439,39 @@ function pb_migrate(PDO $pdo) {
             CREATE INDEX idx_post_meta_key ON post_meta(meta_key);
         ");
     }
-    // Future schema changes go here as: if ($v < 7) { ... }
+    if ($v < 7) {
+        // 0.28: comments (one level of replies), likes, and a per-post comments switch.
+        $pdo->exec("
+            CREATE TABLE comments (
+                id          INTEGER PRIMARY KEY,
+                post_id     INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+                parent_id   INTEGER REFERENCES comments(id) ON DELETE CASCADE,
+                user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                name        TEXT NOT NULL,
+                body        TEXT NOT NULL,
+                status      TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','spam','trash')),
+                email       TEXT NOT NULL DEFAULT '',
+                notify      INTEGER NOT NULL DEFAULT 0,
+                token       TEXT NOT NULL DEFAULT '',
+                ip_hash     TEXT NOT NULL DEFAULT '',
+                created_at  TEXT NOT NULL,
+                approved_at TEXT
+            );
+            CREATE INDEX idx_comments_post ON comments(post_id, status, id);
+            CREATE INDEX idx_comments_status ON comments(status, id);
+            CREATE INDEX idx_comments_ip ON comments(ip_hash, created_at);
+            CREATE TABLE post_likes (
+                post_id    INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+                visitor    TEXT NOT NULL,
+                ip_hash    TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (post_id, visitor)
+            );
+            CREATE INDEX idx_likes_ip ON post_likes(post_id, ip_hash);
+            ALTER TABLE posts ADD COLUMN comments_open INTEGER NOT NULL DEFAULT 1;
+        ");
+    }
+    // Future schema changes go here as: if ($v < 8) { ... }
     $pdo->exec('PRAGMA user_version = ' . (int) PB_SCHEMA_VERSION);
     $pdo->commit();
     if ($v < 5) $pdo->exec('PRAGMA foreign_keys = ON');
@@ -519,6 +551,23 @@ function pb_settings_defaults() {
         'installed_version'   => '',
         'upgrade_notice'      => '',
         'rename_notice'       => '',              // '1' = show "PostBase is now JotKite" once
+        // Settings → Comments & email (lib/engage.php, lib/mail.php).
+        'comments_enabled'    => '1',
+        'comments_moderation' => 'public',        // public = visitors' comments wait for approval | off
+        'comments_close_days' => '0',             // 0 = never close
+        'comments_notify'     => '1',             // email moderators about waiting comments
+        'likes_enabled'       => '1',
+        'share_enabled'       => '1',
+        'mail_mode'           => 'off',           // off | smtp | php
+        'smtp_host'           => 'smtp.hostinger.com',
+        'smtp_port'           => '465',
+        'smtp_secure'         => 'ssl',           // ssl (465) | tls (587, STARTTLS) | none
+        'smtp_user'           => '',
+        'smtp_pass'           => '',
+        'mail_from'           => '',
+        'mail_from_name'      => '',
+        'mail_last_error'     => '',
+        'engage_secret'       => '',
     ];
 }
 
@@ -887,6 +936,8 @@ function pb_can($user, $perm, $post = null) {
         case 'category.manage':
         case 'media.delete':
             return $isEditor;
+        case 'comment.moderate': // $post given: that post's comments; none: any (Authors: their own posts')
+            return pb_can_moderate($user, $post);
         case 'user.manage':
         case 'settings.manage':
             return $role === 'admin';
@@ -1029,6 +1080,7 @@ function pb_post_save($user, $postId, array $in) {
         'seo_description' => trim((string) ($in['seo_description'] ?? '')),
         'updated_at' => pb_now(),
     ];
+    if (isset($in['comments_present'])) $fields['comments_open'] = !empty($in['comments_open']) ? 1 : 0; // the editor's Allow comments box
     // Pages and pinning are site structure: Editors/Admins only. A contributor's
     // save never changes them (new posts from contributors are always 'post').
     if (pb_can($user, 'category.manage')) {
@@ -1505,6 +1557,8 @@ function pb_layout_mode() {
 require __DIR__ . '/addons.php';
 require __DIR__ . '/media.php';
 require __DIR__ . '/demo.php';
+require __DIR__ . '/mail.php';
+require __DIR__ . '/engage.php';
 
 // Adds "Sitemap: <blog sitemap>" to the site's robots.txt, outside GeoRank's
 // managed marker block so a GeoRank robots regeneration never removes it.

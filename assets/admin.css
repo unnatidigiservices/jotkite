@@ -72,7 +72,7 @@ code { font-size: .9em; background: var(--pb-surface-2); padding: 1px 5px; borde
 /* The blog's own name next to the logo; long names end in "…" (full name on hover) */
 .pb-site-name { font-size: 18px; font-weight: 750; letter-spacing: -.01em; line-height: 1.2; color: var(--pb-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pb-powered { display: block; text-align: center; font-size: 12.5px; color: var(--pb-muted); text-decoration: none; margin-top: -8px; }
-.pb-powered .pb-wordmark { font-size: 13px; }
+.pb-powered .pb-wordmark { font-size: 200%; vertical-align: -0.22em; margin-left: 2px; }
 .pb-powered:hover { color: var(--pb-text); }
 /* Wordmark: "Jot" in ink, "Kite" in the brand gradient (#1F4BFF → #8B2CF6) */
 .pb-wordmark { font-size: 24px; font-weight: 800; letter-spacing: -.02em; line-height: 1; color: #0f172a; white-space: nowrap; }
@@ -160,6 +160,22 @@ input[readonly], textarea[readonly] { background: var(--pb-surface-2); }
 .pb-changelog ul { margin: 4px 0; padding-left: 20px; }
 .pb-changelog p { margin: 6px 0; }
 .pb-note-info { background: var(--pb-accent-soft); border-left-color: var(--pb-accent); }
+.pb-note-error { background: #fdecec; border-left-color: #c62828; color: #8c1d1d; }
+
+/* comments moderation */
+.pb-comment-list { display: grid; gap: 12px; }
+.pb-cmt { padding: 14px 16px; }
+.pb-cmt-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.pb-cmt-when { margin-left: auto; }
+.pb-cmt-on { margin: 2px 0 8px; }
+.pb-cmt-body { font-size: 15px; overflow-wrap: anywhere; }
+.pb-cmt-body p { margin: 0 0 .5em; }
+.pb-cmt-actions { gap: 6px; margin-top: 6px; }
+.pb-cmt-reply { margin-top: 8px; }
+.pb-cmt-reply summary { cursor: pointer; color: var(--pb-accent); font-weight: 600; }
+.pb-cmt-reply textarea { margin: 8px 0; }
+.pb-comment-empty { margin: 0 0 12px; }
+.pb-pager-admin { margin-top: 14px; gap: 8px; }
 
 /* badges & roles */
 .pb-badge { display: inline-block; font-size: 12px; font-weight: 650; padding: 3px 9px; border-radius: 99px; background: var(--pb-surface-2); color: var(--pb-muted); white-space: nowrap; }

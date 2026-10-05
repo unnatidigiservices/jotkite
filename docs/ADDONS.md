@@ -121,6 +121,11 @@ pb_add_filter('pb_post_content', function ($html, $post) {
 | `pb_editor_panel` | action | `$post, $user, $canEdit`: echo a card into the editor's side column (0.27) |
 | `pb_admin_post` | action | `$do, $user`: handle your own admin form posts; CSRF is already checked (0.27) |
 | `pb_sitemap` | action | echo extra `<url><loc>…</loc></url>` lines into sitemap.xml (0.27) |
+| `pb_comment_form` | action | `$post`: echo extra fields into the comment form, e.g. a star rating (0.28) |
+| `pb_comment_check` | filter | `'', ['body', 'name', 'user'], $post`: return an error message to refuse a comment (0.28) |
+| `pb_comment_saved` | action | `$comment, $post`: a comment was stored (pending or live); read your form fields from `$_POST` (0.28) |
+| `pb_comment_approved` | action | `$comment, $post`: a comment went live for the first time (0.28) |
+| `pb_comment_html` | filter | `$html, $comment, $post`: one comment as shown (the `<li>` is closed by the caller) (0.28) |
 
 The optional third argument to `pb_add_action` / `pb_add_filter` is a priority (lower runs first; default 10). Exceptions inside a hook are caught and logged, and the rest of the page still renders.
 
