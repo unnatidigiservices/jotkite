@@ -10,10 +10,10 @@
  */
 if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 
-define('PB_VERSION', '0.28.0');
+define('PB_VERSION', '0.29.0');
 define('PB_HOMEPAGE', 'https://jotkite.com');                             // project info, docs and support
 define('PB_REPO_URL', 'https://github.com/unnatidigiservices/jotkite');    // source code and issues
-define('PB_SCHEMA_VERSION', 7);
+define('PB_SCHEMA_VERSION', 8);
 define('PB_DATA_DIR', PB_ROOT . '/data');
 define('PB_UPLOAD_DIR', PB_ROOT . '/uploads');
 // The site's web root: PB_ROOT itself when JotKite runs at a domain root
@@ -471,7 +471,31 @@ function pb_migrate(PDO $pdo) {
             ALTER TABLE posts ADD COLUMN comments_open INTEGER NOT NULL DEFAULT 1;
         ");
     }
-    // Future schema changes go here as: if ($v < 8) { ... }
+    if ($v < 8) {
+        // 0.29: who uploaded each image. Existing images go to the writer of the
+        // oldest post that uses them; images no post uses stay unowned (Editors/Admins only).
+        $pdo->exec('CREATE TABLE media (
+                        rel        TEXT PRIMARY KEY,
+                        user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                        created_at TEXT NOT NULL
+                    );
+                    CREATE INDEX idx_media_user ON media(user_id)');
+        if (is_dir(PB_UPLOAD_DIR)) {
+            $posts = $pdo->query('SELECT author_id, body, cover_image FROM posts ORDER BY created_at, id')->fetchAll(PDO::FETCH_ASSOC);
+            $ins = $pdo->prepare('INSERT OR IGNORE INTO media (rel, user_id, created_at) VALUES (?, ?, ?)');
+            $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(PB_UPLOAD_DIR, FilesystemIterator::SKIP_DOTS));
+            foreach ($it as $f) {
+                if (!$f->isFile() || !in_array(strtolower($f->getExtension()), ['jpg', 'jpeg', 'png', 'gif', 'webp'], true)) continue;
+                $rel = str_replace('\\', '/', substr($f->getPathname(), strlen(PB_UPLOAD_DIR) + 1));
+                $owner = null;
+                foreach ($posts as $p) {
+                    if (strpos($p['body'], '/uploads/' . $rel) !== false || substr($p['cover_image'], -strlen('/uploads/' . $rel)) === '/uploads/' . $rel) { $owner = (int) $p['author_id']; break; }
+                }
+                $ins->execute([$rel, $owner, gmdate('Y-m-d H:i:s', $f->getMTime())]);
+            }
+        }
+    }
+    // Future schema changes go here as: if ($v < 9) { ... }
     $pdo->exec('PRAGMA user_version = ' . (int) PB_SCHEMA_VERSION);
     $pdo->commit();
     if ($v < 5) $pdo->exec('PRAGMA foreign_keys = ON');
@@ -1431,6 +1455,9 @@ function pb_store_image($tmpPath, $origName, $isUpload, $keepFormat = false) {
         @unlink($tmpPath);
     }
     @chmod($dest, 0644);
+    // Who uploaded it: Authors and Contributors see only their own images; Authors delete them (lib/media.php).
+    $uploader = pb_current_user();
+    pb_q('INSERT OR REPLACE INTO media (rel, user_id, created_at) VALUES (?, ?, ?)', [$sub . '/' . $name, $uploader ? (int) $uploader['id'] : null, pb_now()]);
     return ['url' => PB_BASE_PATH . '/uploads/' . $sub . '/' . $name, 'width' => $w, 'height' => $h];
 }
 

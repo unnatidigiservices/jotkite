@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.29.0 — 2026-10-06
+
+- **Authors manage their own photos.**
+  - In Media and the image pickers, Authors and Contributors see only the images they uploaded. Authors can delete theirs (before, Authors couldn't delete any); Contributors still can't delete.
+  - They can't see or delete anyone else's, even by sending a crafted request.
+  - Editors and Admins still see and manage everything.
+- JotKite now records who uploaded each image. On upgrade, existing images go to the writer of the oldest post that uses them; images no post uses stay with Editors and Admins.
+- **The Like button is a smiling kite.** It's outlined until you like a post, then it fills with the JotKite gradient and lifts off a little (no motion if the reader prefers reduced motion). The Share button shows a kite with a tail.
+- In the admin footer, the "JotKite" wordmark is twice the size of "Powered by".
+- Database schema v8 (`media`), applied automatically.
+
 ## 0.28.0 — 2026-10-06
 
 - **Comments.**

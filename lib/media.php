@@ -7,16 +7,34 @@ if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 
 define('PB_MEDIA_EXTS', ['jpg', 'jpeg', 'png', 'gif', 'webp']);
 
-/** Every image in uploads/, newest first: [rel, url, name, size, mtime]. Optional filename filter. */
-function pb_media_list($q = '') {
+/**
+ * Whose images $user may see in Media and the image pickers: null = everyone's
+ * (Editors, Admins), else their own user id (Authors, Contributors).
+ * Authors may also delete their own; Contributors can't delete.
+ */
+function pb_media_scope($user) {
+    return $user && !in_array($user['role'], ['editor', 'admin'], true) ? (int) $user['id'] : null;
+}
+/** The relative paths among $rels that $userId uploaded. */
+function pb_media_owned(array $rels, $userId) {
+    if (!$rels) return [];
+    $rels = array_values(array_unique(array_map('strval', $rels)));
+    $own = pb_all('SELECT rel FROM media WHERE user_id = ? AND rel IN (' . implode(',', array_fill(0, count($rels), '?')) . ')', array_merge([(int) $userId], $rels));
+    return array_column($own, 'rel');
+}
+
+/** Every image in uploads/, newest first: [rel, url, name, size, mtime]. Optional filename filter, and only $ownerId's images when given. */
+function pb_media_list($q = '', $ownerId = null) {
     $out = [];
     if (!is_dir(PB_UPLOAD_DIR)) return $out;
     $q = strtolower(trim((string) $q));
+    $mine = $ownerId === null ? null : array_flip(array_column(pb_all('SELECT rel FROM media WHERE user_id = ?', [(int) $ownerId]), 'rel'));
     $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(PB_UPLOAD_DIR, FilesystemIterator::SKIP_DOTS));
     foreach ($it as $f) {
         if (!$f->isFile() || !in_array(strtolower($f->getExtension()), PB_MEDIA_EXTS, true)) continue;
         $rel = str_replace('\\', '/', substr($f->getPathname(), strlen(PB_UPLOAD_DIR) + 1));
         if ($q !== '' && strpos(strtolower($rel), $q) === false) continue;
+        if ($mine !== null && !isset($mine[$rel])) continue;
         $out[] = ['rel' => $rel, 'url' => PB_BASE_PATH . '/uploads/' . $rel, 'name' => $f->getFilename(),
                   'size' => $f->getSize(), 'mtime' => $f->getMTime()];
     }
@@ -59,7 +77,8 @@ function pb_media_delete(array $rels) {
     $deleted = 0; $skipped = 0;
     foreach (array_unique($rels) as $rel) {
         $full = pb_media_path($rel);
-        if ($full && @unlink($full)) $deleted++; else $skipped++;
+        if ($full && @unlink($full)) { $deleted++; pb_q('DELETE FROM media WHERE rel = ?', [str_replace('\\', '/', (string) $rel)]); }
+        else $skipped++;
     }
     return [$deleted, $skipped];
 }

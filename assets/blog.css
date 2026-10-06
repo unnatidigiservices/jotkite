@@ -165,11 +165,19 @@
 .pb-engage-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 14px 0; border-top: 1px solid var(--pb-border); border-bottom: 1px solid var(--pb-border); }
 .pb-like, .pb-share-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 8px 16px; border: 1px solid var(--pb-border); border-radius: 999px; background: var(--pb-bg); color: var(--pb-text); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
 .pb-like:hover, .pb-share-btn:hover { border-color: var(--pb-accent); }
-.pb-like-heart::before { content: "\2661"; font-size: 19px; line-height: 1; color: #e0245e; }
-.pb-like.is-liked { border-color: #f4b6c8; background: #fff0f4; }
-.pb-like.is-liked .pb-like-heart::before { content: "\2665"; }
-.pb-like.is-liked .pb-like-heart { animation: pb-pop .3s ease; }
-@keyframes pb-pop { 50% { transform: scale(1.35); } }
+.pb-like-kite { flex: none; color: var(--pb-accent); overflow: visible; transform-origin: 50% 80%; }
+.pb-like-kite .k-body { fill: transparent; stroke: currentColor; transition: fill .2s; }
+.pb-like-kite .k-tail, .pb-like-kite .k-bow, .pb-like-kite .k-smile { stroke: currentColor; }
+.pb-like-kite .k-eye { fill: currentColor; }
+.pb-like:hover .pb-like-kite { transform: rotate(-6deg); }
+.pb-like.is-liked { border-color: #c9d2ff; background: #eef1ff; }
+.pb-like.is-liked .k-body { fill: url(#pbKiteGrad); stroke: url(#pbKiteGrad); }
+.pb-like.is-liked .k-eye { fill: #fff; }
+.pb-like.is-liked .k-smile { stroke: #fff; }
+.pb-like.is-liked .k-tail, .pb-like.is-liked .k-bow { stroke: #8b2cf6; }
+.pb-like.is-liked .pb-like-kite { animation: pb-fly .55s ease; }
+@keyframes pb-fly { 40% { transform: translateY(-5px) rotate(-10deg) scale(1.15); } 70% { transform: translateY(-2px) rotate(4deg); } }
+@media (prefers-reduced-motion: reduce) { .pb-like.is-liked .pb-like-kite { animation: none; } }
 .pb-like-n { color: var(--pb-muted); font-weight: 600; }
 .pb-kite { flex: none; color: var(--pb-accent); transform-origin: 70% 30%; transition: transform .25s ease; }
 .pb-share-btn:hover .pb-kite, .pb-share-btn[aria-expanded="true"] .pb-kite { transform: rotate(-8deg) translateY(-1px); }

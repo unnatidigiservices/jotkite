@@ -300,6 +300,17 @@ function pb_kite_icon() {
          . '<path d="M15.5 15.2c-.4 2.4-2.6 2.5-4.2 3.5s-2.6 3.3-6.8 3.4" stroke-width="1.5"/>'
          . '<path d="m10.4 17.6.6 2.2M6.6 20.6l1.1 1.9" stroke-width="1.5"/></svg>';
 }
+// The Like button's icon: a smiling kite. Outlined until liked, then it fills with
+// the JotKite gradient and takes off a little (blog.css).
+function pb_smile_kite_icon() {
+    return '<svg class="pb-like-kite" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">'
+         . '<defs><linearGradient id="pbKiteGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1f4bff"/><stop offset="1" stop-color="#8b2cf6"/></linearGradient></defs>'
+         . '<path class="k-tail" d="M12 18.4c.4 1.5-1.3 2-1 3.6" fill="none" stroke-width="1.4" stroke-linecap="round"/>'
+         . '<path class="k-bow" d="m10.1 20.1 1.7.5" fill="none" stroke-width="1.4" stroke-linecap="round"/>'
+         . '<path class="k-body" d="M12 1.6 20.2 8.8 12 18.4 3.8 8.8Z" stroke-width="1.7" stroke-linejoin="round"/>'
+         . '<circle class="k-eye" cx="9.5" cy="8.4" r="1.05"/><circle class="k-eye" cx="14.5" cy="8.4" r="1.05"/>'
+         . '<path class="k-smile" d="M9.2 11.3q2.8 2.6 5.6 0" fill="none" stroke-width="1.5" stroke-linecap="round"/></svg>';
+}
 function pb_share_links($post) {
     $url = pb_abs_url(pb_url('post', $post['slug']));
     $t = rawurlencode($post['title']);
@@ -329,7 +340,7 @@ function pb_engage_html($post) {
         $h .= '<div class="pb-engage-bar">';
         if ($likes) {
             $n = pb_like_count($post['id']);
-            $h .= '<button type="button" class="pb-like" data-like aria-pressed="false"><span class="pb-like-heart" aria-hidden="true"></span>'
+            $h .= '<button type="button" class="pb-like" data-like aria-pressed="false">' . pb_smile_kite_icon()
                 . '<span data-like-label>Like</span><span class="pb-like-n" data-like-n' . ($n ? '' : ' hidden') . '>' . $n . '</span></button>';
         }
         if ($share) {

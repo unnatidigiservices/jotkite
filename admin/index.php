@@ -308,7 +308,7 @@ if (($_GET['ajax'] ?? '') === 'links') {
 // Media library for the image picker (editor, featured image, design images): newest first, 40 per page.
 if (($_GET['ajax'] ?? '') === 'media') {
     if (!pb_can($user, 'media.upload')) pb_json([], 403);
-    $all = pb_media_list(trim((string) ($_GET['q'] ?? '')));
+    $all = pb_media_list(trim((string) ($_GET['q'] ?? '')), pb_media_scope($user)); // Authors, Contributors: their own images
     $pg = max(1, (int) ($_GET['pg'] ?? 1));
     $items = [];
     foreach (array_slice($all, ($pg - 1) * 40, 40) as $m) {
@@ -386,8 +386,10 @@ if ($isPost) {
         pb_redirect('view=settings&tab=code');
     }
     if ($do === 'media_delete') {
-        if (!pb_can($user, 'media.delete')) { pb_flash('Only Editors and Admins can delete images.', 'error'); pb_redirect('view=media'); }
+        $ownOnly = !pb_can($user, 'media.delete');
+        if ($ownOnly && $user['role'] !== 'author') { pb_flash('Only Authors, Editors and Admins can delete images.', 'error'); pb_redirect('view=media'); }
         $paths = is_array($_POST['paths'] ?? null) ? array_map('strval', $_POST['paths']) : [];
+        if ($ownOnly) $paths = pb_media_owned($paths, $user['id']); // Authors: only images they uploaded
         [$deleted, $skipped] = pb_media_delete($paths);
         pb_flash('Deleted ' . $deleted . ' image' . ($deleted === 1 ? '' : 's') . '.' . ($skipped ? ' ' . $skipped . ' could not be deleted.' : ''), $skipped && !$deleted ? 'error' : 'ok');
         pb_redirect('view=media' . (!empty($_POST['back']) ? '&' . preg_replace('/[^a-z0-9=&_%-]/i', '', (string) $_POST['back']) : ''));
@@ -1460,13 +1462,14 @@ if ($view === 'edit') {
 } elseif ($view === 'media') {
     $title = 'Media';
     $mq = trim((string) ($_GET['q'] ?? ''));
-    $all = pb_media_list($mq);
+    $scope = pb_media_scope($user);
+    $all = pb_media_list($mq, $scope);
     $per = 60;
     $pagesN = max(1, (int) ceil(count($all) / $per));
     $pageN = min(max(1, (int) ($_GET['pg'] ?? 1)), $pagesN);
     $items = array_slice($all, ($pageN - 1) * $per, $per);
     $usage = pb_media_usage(array_column($items, 'url'));
-    $canDel = pb_can($user, 'media.delete');
+    $canDel = pb_can($user, 'media.delete') || $user['role'] === 'author'; // Authors: their own images (the only ones they see)
     $back = http_build_query(array_filter(['q' => $mq, 'pg' => $pageN > 1 ? $pageN : null])); ?>
 <div class="pb-card pb-media-bar">
   <form method="get" class="pb-media-search" role="search">
@@ -1476,7 +1479,7 @@ if ($view === 'edit') {
   </form>
   <button type="button" class="pb-btn pb-btn-primary pb-btn-sm" id="pbMediaUploadBtn">⬆ Upload images</button>
   <input type="file" id="pbMediaFiles" accept="image/jpeg,image/png,image/gif,image/webp" multiple hidden>
-  <span class="pb-small pb-muted"><?= count($all) ?> image<?= count($all) === 1 ? '' : 's' ?><?= $mq !== '' ? ' matching “' . pb_e($mq) . '”' : '' ?></span>
+  <span class="pb-small pb-muted"><?= $scope !== null ? 'Your images: ' : '' ?><?= count($all) ?> image<?= count($all) === 1 ? '' : 's' ?><?= $mq !== '' ? ' matching “' . pb_e($mq) . '”' : '' ?></span>
   <?php if ($canDel && $items): ?>
     <label class="pb-check pb-small pb-media-all"><input type="checkbox" id="pbMediaAll"> Select all</label>
     <button type="submit" form="pbMediaDelete" class="pb-btn pb-btn-sm pb-btn-danger" id="pbMediaDeleteBtn" disabled>Delete selected (<span>0</span>)</button>
