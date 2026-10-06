@@ -5,7 +5,7 @@
 <p align="center"><sub>by <a href="https://unnatidigiservices.in">Unnati Digi Services</a> · formerly <em>PostBase</em></sub></p>
 
 <p align="center"><strong>Write anywhere, post here.</strong><br>
-A fast, mobile-friendly PHP blogging platform with a real editorial workflow: Contributor → Editor → Admin.</p>
+A fast, mobile-friendly PHP blogging platform with a real editorial workflow: Contributor → Author → Editor → Admin.</p>
 
 <p align="center">
   <a href="https://jotkite.com"><img alt="Website" src="https://img.shields.io/badge/website-jotkite.com-1f4bff"></a>
@@ -40,29 +40,42 @@ Nothing in it depends on GeoRank, though. It runs just as well beside any PHP we
   - Paste from **Word, Google Docs, WordPress (Gutenberg), Notion, web pages or any Markdown editor**, and headings, lists, bold and italic, links, tables, images and videos come through clean.
   - Pasted images are saved to your blog, so they never break later.
   - Type Markdown as you go: `## `, `- `, `1. `, `> `, `**bold**`, `*italic*`, `` `code` ``, `---`.
-  - Images auto-resize and can wrap left or right with a size, caption and alt text.
+  - Images auto-resize, are stored as WebP (photo location and date kept, or removed with one setting), and can wrap left or right with a size, caption and alt text.
+  - 📸 **Photo galleries:** pick or upload several photos at once; they become a grid with a full-screen, swipeable viewer.
   - YouTube and Vimeo embeds, plus an HTML view.
-- 🛂 **Publishing control with three roles:**
+- 🛂 **Publishing control with four roles:**
 
-  | | Contributor | Editor | Admin |
-  |---|:-:|:-:|:-:|
-  | Write & edit own drafts | ✅ | ✅ | ✅ |
-  | Submit for review | ✅ | ✅ | ✅ |
-  | Edit anyone's posts | | ✅ | ✅ |
-  | Approve, publish, schedule | | ✅ | ✅ |
-  | Request changes (with notes) | | ✅ | ✅ |
-  | Pages, pinned posts, categories | | ✅ | ✅ |
-  | Users, settings, permanent delete | | | ✅ |
+  | | Contributor | Author | Editor | Admin |
+  |---|:-:|:-:|:-:|:-:|
+  | Write & edit own drafts | ✅ | ✅ | ✅ | ✅ |
+  | Submit for review | ✅ | | ✅ | ✅ |
+  | Publish, schedule, unpublish, archive own posts | | ✅ | ✅ | ✅ |
+  | Edit anyone's posts | | | ✅ | ✅ |
+  | Approve and publish others' posts | | | ✅ | ✅ |
+  | Request changes (with notes) | | | ✅ | ✅ |
+  | Approve comments | | Own posts | ✅ | ✅ |
+  | Delete images | | Own images | ✅ | ✅ |
+  | Pages, pinned posts, categories | | | ✅ | ✅ |
+  | Users, settings, permanent delete | | | | ✅ |
+
+  Authors publish without review; Contributors and Authors see only their own images in Media.
 
 - 🧾 **Review queue and audit trail.** Pending posts are counted in the sidebar, and every submit, approve, change request and unpublish is logged with who, when and why.
 - 📄 **Pages and a featured post.**
   - Pages (About, Contact, Support…) use the same editor with clean URLs, and stay out of the post list.
   - Pin a post to feature it at the top of the blog home.
 - 🏠 **Static homepage.** Make any Page your homepage; the post list moves to `/posts/` automatically, with SEO-safe redirects.
+- 💬 **Comments, likes and sharing.**
+  - Comments with one level of replies. Your team's comments go live at once; visitors comment with a name and wait for approval.
+  - Visitors' comments are plain text (links and code removed), with spam traps instead of a CAPTCHA, and optional email updates over SMTP.
+  - A one-tap smiling-kite like button, and sharing through the phone's share sheet or WhatsApp, Facebook, X, LinkedIn and Telegram. No third-party scripts.
+- 👤 **Author pages.** Each writer gets a page with a photo and bio at `/author/username/`, with privacy switches.
+- 🪁 **Built-in illustrations.** Posts without an image can show one of 10 JotKite illustrations, the same one everywhere the post appears.
 - 🖼️ **Media Manager.** A thumbnail library of every image, with a popup preview, one-click copy link, "used in" tracking and multi-select delete.
 - 🧰 **Custom header and footer code.** Add site-verification tags, analytics or chat widgets to every page from Settings → Code.
 - ⏰ **Scheduled posts.** Publish with a future date and the post goes live on its own.
 - 📱 **Fast and mobile-first.**
+  - Install the admin on your home screen as an app (with an install prompt), and stay signed in for 180 days.
   - No JavaScript framework on public pages.
   - Lazy-loaded, resized images.
   - Responsive layouts that stack cleanly on phones.
@@ -150,9 +163,8 @@ We compared plain text files, JSON and SQLite for a multi-author workflow. See [
 ## Roadmap
 
 - Tags, revisions with one-click restore, email notifications for review requests
-- Media library browser, image alt-text reminders
+- Image alt-text reminders
 - Import from WordPress (WXR) and export to Markdown/JSON
-- Comments (opt-in, moderated)
 - MySQL driver for large installs
 
 Have an idea? [Open an issue](https://github.com/unnatidigiservices/jotkite/issues). Pull requests are welcome; please read [CONTRIBUTING.md](CONTRIBUTING.md) first.

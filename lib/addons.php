@@ -103,19 +103,30 @@ function pb_routes() {
  */
 function pb_addon_migrate($slug, $version, callable $fn) {
     $key = 'addon:' . $slug . ':schema';
-    $from = (int) pb_setting($key);
-    if ($from >= (int) $version) return true;
+    if ((int) pb_setting($key) >= (int) $version) return true; // the usual case: no lock, no query
     $db = pb_db();
-    $db->beginTransaction();
+    // BEGIN IMMEDIATE takes the write lock now (waiting on busy_timeout), so two
+    // requests right after an update can't both run the steps. PDO's
+    // beginTransaction() sends a deferred BEGIN, hence exec().
+    $db->exec('BEGIN IMMEDIATE');
     try {
-        $fn($db, $from);
-        $db->commit();
+        $st = $db->prepare('SELECT value FROM settings WHERE key = ?');
+        $st->execute([$key]);
+        $from = (int) $st->fetchColumn(); // re-read under the lock: another request may have finished first
+        if ($from < (int) $version) {
+            $fn($db, $from);
+            // The version is saved in the same transaction: steps and version commit together.
+            $db->prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
+               ->execute([$key, (string) (int) $version]);
+        }
+        $db->exec('COMMIT');
     } catch (Throwable $e) {
-        $db->rollBack();
+        try { $db->exec('ROLLBACK'); } catch (Throwable $e2) { /* already rolled back */ }
         pb_addon_error($e, 'migrate ' . $slug);
         return false;
+    } finally {
+        pb_setting(null); // refresh the settings cache
     }
-    pb_settings_save([$key => (string) (int) $version]);
     return true;
 }
 

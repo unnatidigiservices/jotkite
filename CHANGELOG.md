@@ -9,6 +9,7 @@
 - JotKite now records who uploaded each image. On upgrade, existing images go to the writer of the oldest post that uses them; images no post uses stay with Editors and Admins.
 - **The Like button is a smiling kite.** It's outlined until you like a post, then it fills with the JotKite gradient and lifts off a little (no motion if the reader prefers reduced motion). The Share button shows a kite with a tail.
 - In the admin footer, the "JotKite" wordmark is twice the size of "Powered by".
+- **Addon migrations are safer.** `pb_addon_migrate()` takes SQLite's write lock (`BEGIN IMMEDIATE`) and checks the version again inside it, so two requests arriving together right after an update no longer both run the steps (which used to log a harmless "table already exists" error). The new version is saved in the same transaction as the steps, so a crash between the two can't make them run twice. Same signature and behaviour.
 - Database schema v8 (`media`), applied automatically.
 
 ## 0.28.0 — 2026-10-06
