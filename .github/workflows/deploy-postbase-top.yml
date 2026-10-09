@@ -1,0 +1,54 @@
+# Deploys this repository to postbase.top (MilesWeb, no Git on the server) over FTP
+# after every push to main. Only changed files are uploaded; the site's own data
+# (data/, uploads/, config.php) is never touched.
+#
+# Setup, once: GitHub → repository → Settings → Secrets and variables → Actions →
+# New repository secret:
+#   POSTBASE_FTP_SERVER     e.g. ftp.postbase.top
+#   POSTBASE_FTP_USERNAME   an FTP account whose folder is postbase.top's web root
+#   POSTBASE_FTP_PASSWORD   that account's password
+# Without these secrets (e.g. in forks) the job is skipped, not failed.
+name: Deploy postbase.top
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # "Run workflow" button, for a manual redeploy
+
+concurrency:
+  group: deploy-postbase-top
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      HAS_FTP: ${{ secrets.POSTBASE_FTP_SERVER != '' }}
+    steps:
+      - name: Skip (no FTP secrets set)
+        if: env.HAS_FTP != 'true'
+        run: echo "POSTBASE_FTP_* secrets are not set; nothing to deploy."
+
+      - uses: actions/checkout@v4
+        if: env.HAS_FTP == 'true'
+
+      - name: Upload changed files
+        if: env.HAS_FTP == 'true'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.POSTBASE_FTP_SERVER }}
+          username: ${{ secrets.POSTBASE_FTP_USERNAME }}
+          password: ${{ secrets.POSTBASE_FTP_PASSWORD }}
+          protocol: ftps        # change to ftp only if the host refuses FTPS
+          local-dir: ./
+          server-dir: ./
+          exclude: |
+            **/.git*
+            **/.git*/**
+            .github/**
+            data/**
+            uploads/**
+            config.php
+            dist/**
+            docs/**
+            tools/**
