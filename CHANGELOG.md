@@ -8,7 +8,7 @@
   - Editors and Admins still see and manage everything.
 - JotKite now records who uploaded each image. On upgrade, existing images go to the writer of the oldest post that uses them; images no post uses stay with Editors and Admins.
 - **Typing around images is easy now.** Images are locked blocks in the editor, so an image at the very top, two images in a row, or an image at the end used to leave nowhere to put the cursor (only the HTML view helped).
-  - The editor now keeps a tappable empty line above, between and below images. Lines you don't use are dropped on save, so the published post gets no extra gaps.
+  - The editor now keeps a tappable empty line, marked **＋ Add text here**, above, between and below images. Lines you don't use are dropped on save, so the published post gets no extra gaps.
   - The image bar has **↑ Text above** and **↓ Text below**.
   - With an image selected, **Enter** adds a line below and **Shift+Enter** a line above.
 - **The Like button is a smiling kite.** It's outlined until you like a post, then it fills with the JotKite gradient and lifts off a little (no motion if the reader prefers reduced motion). The Share button shows a kite with a tail.

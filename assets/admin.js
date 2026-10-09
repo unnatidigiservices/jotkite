@@ -594,7 +594,7 @@
     $all('[contenteditable]', clone).forEach((el) => el.removeAttribute('contenteditable'));
     $all('.pb-importing', clone).forEach((el) => el.classList.remove('pb-importing'));
     $all('[data-pb-import]', clone).forEach((el) => el.removeAttribute('data-pb-import'));
-    $all('p.pb-pad', clone).forEach((p) => { if (p.textContent.trim() === '' && !p.querySelector('img')) p.remove(); else p.classList.remove('pb-pad'); });
+    $all('p.pb-pad', clone).forEach((p) => { if (p.textContent.trim() === '' && !p.querySelector('img')) p.remove(); else p.classList.remove('pb-pad', 'is-here'); });
     // An empty line the writer added but never used, at the very end, isn't worth saving.
     while (clone.lastElementChild && clone.lastElementChild.tagName === 'P' && clone.lastElementChild.textContent.trim() === '' && !clone.lastElementChild.querySelector('img')
            && clone.lastElementChild.previousElementSibling && clone.lastElementChild.previousElementSibling.tagName === 'FIGURE') clone.lastElementChild.remove();
@@ -676,8 +676,11 @@
     return p;
   }
   function isBlock(el) { return !!el && el.nodeType === 1 && el.tagName === 'FIGURE'; }
+  const blankP = (el) => !!el && el.tagName === 'P' && el.textContent.trim() === '' && !el.querySelector('img,a,iframe');
   function ensurePads() {
     $all(':scope > figure', editor).forEach((f) => {
+      // An empty line already next to an image gets the same hint (and is dropped if unused).
+      [f.previousElementSibling, f.nextElementSibling].forEach((s) => { if (blankP(s)) s.classList.add('pb-pad'); });
       if (!f.previousElementSibling || isBlock(f.previousElementSibling)) f.before(padLine());
       if (!f.nextElementSibling) f.after(padLine());
     });
@@ -687,9 +690,17 @@
     ensurePads();
   }
   prepareFigures();
+  // The hint on an empty line hides while the cursor is in it.
+  document.addEventListener('selectionchange', () => {
+    const sel = window.getSelection();
+    const node = sel.rangeCount ? sel.anchorNode : null;
+    const here = node && editor.contains(node) ? (node.nodeType === 1 ? node : node.parentElement).closest('p.pb-pad') : null;
+    $all('p.pb-pad.is-here', editor).forEach((p) => { if (p !== here) p.classList.remove('is-here'); });
+    if (here) here.classList.add('is-here');
+  });
   // A line typed into a pad becomes an ordinary paragraph.
   editor.addEventListener('input', () => {
-    $all('p.pb-pad', editor).forEach((p) => { if (p.textContent.trim() !== '' || p.querySelector('img,a')) p.classList.remove('pb-pad'); });
+    $all('p.pb-pad', editor).forEach((p) => { if (p.textContent.trim() !== '' || p.querySelector('img,a')) p.classList.remove('pb-pad', 'is-here'); });
     ensurePads(); // e.g. the line after the last image was deleted
   });
   // Put the cursor in a (new) empty line just above or below a figure.
@@ -708,7 +719,7 @@
     const empty = sib && sib.tagName === 'P' && sib.textContent.trim() === '' && !sib.querySelector('img');
     const p = empty ? sib : padLine();
     if (!empty) { if (where === 'above') fig.before(p); else fig.after(p); }
-    p.classList.remove('pb-pad'); // the writer asked for it: keep it even if left empty for now
+    p.classList.remove('pb-pad', 'is-here'); // the writer asked for it: keep it even if left empty for now
     dirty = true;
     caretInto(p);
     return p;
