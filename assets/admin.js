@@ -594,6 +594,10 @@
     $all('[contenteditable]', clone).forEach((el) => el.removeAttribute('contenteditable'));
     $all('.pb-importing', clone).forEach((el) => el.classList.remove('pb-importing'));
     $all('[data-pb-import]', clone).forEach((el) => el.removeAttribute('data-pb-import'));
+    $all('p.pb-pad', clone).forEach((p) => { if (p.textContent.trim() === '' && !p.querySelector('img')) p.remove(); else p.classList.remove('pb-pad'); });
+    // An empty line the writer added but never used, at the very end, isn't worth saving.
+    while (clone.lastElementChild && clone.lastElementChild.tagName === 'P' && clone.lastElementChild.textContent.trim() === '' && !clone.lastElementChild.querySelector('img')
+           && clone.lastElementChild.previousElementSibling && clone.lastElementChild.previousElementSibling.tagName === 'FIGURE') clone.lastElementChild.remove();
     $all('[class=""]', clone).forEach((el) => el.removeAttribute('class'));
     return clone.innerHTML.replace(/​/g, ''); // caret markers from Markdown shortcuts
   }
@@ -661,10 +665,54 @@
 
   // Images and videos are handled as whole blocks: clicking selects them and
   // shows the options bar, instead of putting a caret inside them.
+  // A non-editable block can't take the cursor next to it, so an image at the very
+  // top, two images in a row, or an image at the end would leave nowhere to type.
+  // Keep an empty line (p.pb-pad) in each of those places; unused ones are dropped
+  // on save (cleanHtml), so they never add gaps to the published post.
+  function padLine() {
+    const p = document.createElement('p');
+    p.className = 'pb-pad';
+    p.appendChild(document.createElement('br'));
+    return p;
+  }
+  function isBlock(el) { return !!el && el.nodeType === 1 && el.tagName === 'FIGURE'; }
+  function ensurePads() {
+    $all(':scope > figure', editor).forEach((f) => {
+      if (!f.previousElementSibling || isBlock(f.previousElementSibling)) f.before(padLine());
+      if (!f.nextElementSibling) f.after(padLine());
+    });
+  }
   function prepareFigures() {
     $all('figure', editor).forEach((f) => f.setAttribute('contenteditable', 'false'));
+    ensurePads();
   }
   prepareFigures();
+  // A line typed into a pad becomes an ordinary paragraph.
+  editor.addEventListener('input', () => {
+    $all('p.pb-pad', editor).forEach((p) => { if (p.textContent.trim() !== '' || p.querySelector('img,a')) p.classList.remove('pb-pad'); });
+    ensurePads(); // e.g. the line after the last image was deleted
+  });
+  // Put the cursor in a (new) empty line just above or below a figure.
+  function caretInto(p) {
+    editor.focus();
+    const r = document.createRange();
+    r.setStart(p, 0);
+    r.collapse(true);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(r);
+    savedRange = r.cloneRange();
+  }
+  function lineBeside(fig, where) {
+    const sib = where === 'above' ? fig.previousElementSibling : fig.nextElementSibling;
+    const empty = sib && sib.tagName === 'P' && sib.textContent.trim() === '' && !sib.querySelector('img');
+    const p = empty ? sib : padLine();
+    if (!empty) { if (where === 'above') fig.before(p); else fig.after(p); }
+    p.classList.remove('pb-pad'); // the writer asked for it: keep it even if left empty for now
+    dirty = true;
+    caretInto(p);
+    return p;
+  }
 
   function saveSelection() {
     const sel = window.getSelection();
@@ -982,6 +1030,18 @@
   document.addEventListener('mousedown', (e) => {
     if (current && !bar.contains(e.target) && !editor.contains(e.target)) hideImgBar();
   });
+  // With an image selected: Enter adds a line below it, Shift+Enter above, Esc lets go.
+  document.addEventListener('keydown', (e) => {
+    if (!current || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const fig = current;
+      hideImgBar();
+      lineBeside(fig, e.shiftKey ? 'above' : 'below');
+    } else if (e.key === 'Escape') {
+      hideImgBar();
+    }
+  });
   window.addEventListener('resize', placeBar);
   window.addEventListener('scroll', placeBar, true);
   bar.addEventListener('mousedown', (e) => e.preventDefault());
@@ -1007,9 +1067,14 @@
         if (!cap) { cap = document.createElement('figcaption'); fig.appendChild(cap); }
         cap.textContent = text.trim();
       }
+    } else if (b.dataset.imgAct === 'above' || b.dataset.imgAct === 'below') {
+      hideImgBar();
+      lineBeside(fig, b.dataset.imgAct);
+      return;
     } else if (b.dataset.imgAct === 'remove') {
       hideImgBar();
       fig.remove();
+      ensurePads();
       dirty = true;
       return;
     }

@@ -808,6 +808,8 @@ if ($view === 'edit') {
       <span class="pb-imgbar-sep"></span>
       <button type="button" data-img-act="alt" title="Alt text">Alt</button>
       <button type="button" data-img-act="caption" title="Caption">Caption</button>
+      <button type="button" data-img-act="above" title="Add a line of text above">↑ Text above</button>
+      <button type="button" data-img-act="below" title="Add a line of text below (or press Enter)">↓ Text below</button>
       <button type="button" data-img-act="remove" title="Remove" class="pb-danger-text">✕</button>
     </div>
     <input type="file" id="pbImageFile" accept="image/jpeg,image/png,image/gif,image/webp" hidden>

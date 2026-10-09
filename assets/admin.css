@@ -239,6 +239,9 @@ input[readonly], textarea[readonly] { background: var(--pb-surface-2); }
 
 /* Same image/embed layout as the public blog, so the editor shows the real wrap */
 .pb-prose figure { margin: 1.2em 0; }
+/* Empty lines kept around images so there's always somewhere to type (admin.js ensurePads) */
+.pb-prose p.pb-pad { min-height: 1.7em; margin: .2em 0; border-radius: 8px; cursor: text; transition: background .15s; }
+.pb-prose p.pb-pad:hover { background: var(--pb-accent-soft); box-shadow: inset 0 0 0 1px var(--pb-border); }
 .pb-prose .pb-figure { cursor: pointer; }
 .pb-prose .pb-figure img { display: block; width: 100%; height: auto; }
 /* Gallery block, laid out as on the blog (blog.css) */
