@@ -126,7 +126,9 @@ Use **Control Center → Upgrade → Blog → Install Blog** in GeoRank (v1.90+)
 
 ### Updating
 
-Replace every file except `config.php`, `data/` and `uploads/`. Database upgrades run automatically on the next page load.
+**One click:** Admins see "JotKite X is available" in the admin. **Settings → Updates → Update now** downloads only the changed files, checks each one against the **signed** release (RSA-SHA256, JotKite release key), and only then swaps them in. Your posts, photos, settings and `config.php` are never touched, and **Roll back** returns to the previous version. No FTP, Git or File Manager needed.
+
+By hand: replace every file except `config.php`, `data/` and `uploads/`. Database upgrades run automatically on the next page load. Sites deployed from Git update by pulling, and GeoRank sites update through GeoRank.
 
 ### Public demo site
 

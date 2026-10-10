@@ -10,7 +10,7 @@
  */
 if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 
-define('PB_VERSION', '0.29.1');
+define('PB_VERSION', '0.30.0');
 define('PB_HOMEPAGE', 'https://jotkite.com');                             // project info, docs and support
 define('PB_REPO_URL', 'https://github.com/unnatidigiservices/jotkite');    // source code and issues
 define('PB_SCHEMA_VERSION', 8);
@@ -592,6 +592,9 @@ function pb_settings_defaults() {
         'mail_from_name'      => '',
         'mail_last_error'     => '',
         'engage_secret'       => '',
+        // Settings → Updates (lib/update.php): last check result and last update, as JSON.
+        'update_check'        => '',
+        'update_last'         => '',
     ];
 }
 
@@ -1586,6 +1589,7 @@ require __DIR__ . '/media.php';
 require __DIR__ . '/demo.php';
 require __DIR__ . '/mail.php';
 require __DIR__ . '/engage.php';
+require __DIR__ . '/update.php';
 
 // Adds "Sitemap: <blog sitemap>" to the site's robots.txt, outside GeoRank's
 // managed marker block so a GeoRank robots regeneration never removes it.

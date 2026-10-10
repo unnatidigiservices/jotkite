@@ -286,6 +286,7 @@ if (!$user) {
 }
 
 pb_version_check();
+if (pb_can($user, 'settings.manage')) pb_update_check_later(); // once a day, after the page is sent (lib/update.php)
 
 // Link dialog search (editor): published posts and pages only — no drafts,
 // categories or media — newest first. Empty query = the 10 most recent.
@@ -641,6 +642,20 @@ if ($isPost) {
         }
         pb_flash('Device signed out.');
         pb_redirect('view=account');
+    }
+
+    // ---- one-click updates (lib/update.php) ----
+    if (in_array($do, ['update_check', 'update_run', 'update_rollback'], true)) {
+        if (!pb_can($user, 'settings.manage')) { pb_flash('Only Admins can update JotKite.', 'error'); pb_redirect(); }
+        if ($do === 'update_check') {
+            $c = pb_update_check(true);
+            pb_flash($c['error'] !== '' ? 'Could not check for updates: ' . $c['error']
+                : (version_compare($c['version'], PB_VERSION, '>') ? 'JotKite ' . $c['version'] . ' is available.' : 'You have the latest version (' . PB_VERSION . ').'), $c['error'] !== '' ? 'error' : 'ok');
+        } else {
+            [$ok, $msg] = $do === 'update_run' ? pb_update_run($user) : pb_update_rollback($user);
+            pb_flash($msg, $ok ? 'ok' : 'error');
+        }
+        pb_redirect('view=settings&tab=updates');
     }
 
     // ---- comments (lib/engage.php) ----
@@ -1101,7 +1116,7 @@ if ($view === 'edit') {
 } elseif ($view === 'settings' && pb_can($user, 'settings.manage')) {
     $title = 'Settings';
     $s = function ($k) { return pb_setting($k); };
-    $stabs = ['general' => 'General', 'design' => 'Design', 'navigation' => 'Navigation', 'engage' => 'Comments & email', 'code' => 'Code', 'addons' => 'Addons'] + (pb_demo_on() ? ['demo' => 'Demo'] : []);
+    $stabs = ['general' => 'General', 'design' => 'Design', 'navigation' => 'Navigation', 'engage' => 'Comments & email', 'code' => 'Code', 'addons' => 'Addons', 'updates' => 'Updates'] + (pb_demo_on() ? ['demo' => 'Demo'] : []);
     $stab = isset($stabs[$_GET['tab'] ?? '']) ? $_GET['tab'] : 'general';
     $isGr = pb_is_georank_site();
     // GeoRank options only where they mean something: on a GeoRank site, or while a
@@ -1245,6 +1260,53 @@ if ($view === 'edit') {
       <button class="pb-btn" name="do" value="mail_test" <?= $mailLocked ? 'disabled' : '' ?> title="Sends to <?= pb_e($user['email']) ?>">Send a test to me</button>
     </div>
   </form>
+</div>
+<?php elseif ($stab === 'updates'):
+    $blockers = pb_update_blockers();
+    $chk = json_decode((string) $s('update_check'), true);
+    $avail = pb_update_available();
+    $last = json_decode((string) $s('update_last'), true);
+    $bk = pb_update_backup_info(); ?>
+<div class="pb-two-col">
+  <div class="pb-card">
+    <h3 class="pb-h3">JotKite <?= pb_e(PB_VERSION) ?></h3>
+    <?php if ($blockers): ?>
+      <div class="pb-note pb-note-info pb-small"><?php foreach ($blockers as $b): ?><p><?= pb_e($b) ?></p><?php endforeach; ?></div>
+    <?php elseif ($avail): ?>
+      <div class="pb-update-avail">
+        <p><strong>JotKite <?= pb_e($avail['version']) ?> is available</strong><?= !empty($avail['released']) ? ' <span class="pb-small pb-muted">· released ' . pb_e(pb_format_date($avail['released'] . ' 00:00:00', 'j M Y')) . '</span>' : '' ?></p>
+        <?php if (!empty($avail['changelog'])): ?><details class="pb-upgrade-notes" open><summary>What's new</summary><div class="pb-changelog"><?= pb_md_lite($avail['changelog']) ?></div></details><?php endif; ?>
+        <form method="post"><?= pb_csrf_field() ?><input type="hidden" name="do" value="update_run">
+          <button class="pb-btn pb-btn-primary" data-confirm="Update JotKite to <?= pb_e($avail['version']) ?> now? It takes a few seconds. Your posts, photos and settings aren't touched, and you can roll back.">⬆ Update now</button></form>
+        <p class="pb-small pb-muted">Only changed files are downloaded. Each one is checked against the signed release before anything is replaced, and the current files are kept so you can roll back.</p>
+      </div>
+    <?php elseif (is_array($chk) && ($chk['error'] ?? '') !== ''): ?>
+      <p>⚠️ Couldn't check for updates just now. JotKite will try again tomorrow, or click Check now.</p>
+    <?php elseif (is_array($chk) && !empty($chk['at'])): ?>
+      <p>✅ You have the latest version.</p>
+    <?php else: ?>
+      <p>Not checked for updates yet.</p>
+    <?php endif; ?>
+    <?php if (!$blockers || pb_update_url() !== ''): ?>
+    <form method="post" class="pb-row"><?= pb_csrf_field() ?><input type="hidden" name="do" value="update_check">
+      <button class="pb-btn pb-btn-sm">Check now</button>
+      <span class="pb-small pb-muted"><?= is_array($chk) && !empty($chk['at']) ? 'Last checked ' . pb_e(pb_format_date(gmdate('Y-m-d H:i:s', (int) $chk['at']), 'j M Y, g:i a')) : 'Not checked yet' ?><?= is_array($chk) && ($chk['error'] ?? '') !== '' ? ' · <span class="pb-danger-text">' . pb_e($chk['error']) . '</span>' : '' ?></span></form>
+    <?php endif; ?>
+  </div>
+  <div class="pb-card">
+    <h3 class="pb-h3">History</h3>
+    <?php if (is_array($last) && !empty($last['to'])): ?>
+      <p class="pb-small"><?= !empty($last['rollback']) ? 'Rolled back' : 'Updated' ?> from <?= pb_e($last['from']) ?> to <strong><?= pb_e($last['to']) ?></strong> by <?= pb_e($last['by'] ?? '') ?>, <?= pb_e(pb_format_date($last['at'], 'j M Y, g:i a')) ?>.</p>
+    <?php else: ?><p class="pb-small pb-muted">No updates from here yet.</p><?php endif; ?>
+    <?php if ($bk): ?>
+      <form method="post"><?= pb_csrf_field() ?><input type="hidden" name="do" value="update_rollback">
+        <button class="pb-btn pb-btn-sm" data-confirm="Go back to JotKite <?= pb_e($bk['version']) ?>? Posts and settings stay as they are.">↩ Roll back to <?= pb_e($bk['version']) ?></button></form>
+      <p class="pb-small pb-muted">Puts back the <?= count($bk['changed']) ?> file<?= count($bk['changed']) === 1 ? '' : 's' ?> the last update replaced. Database changes from the newer version stay; older versions simply ignore them.</p>
+    <?php endif; ?>
+    <h3 class="pb-h3">How updates work</h3>
+    <p class="pb-small">Releases are signed with the JotKite release key and every file is checked before it's installed, so only genuine JotKite code can arrive this way. Your posts, photos, settings and <code>config.php</code> are never touched. Database changes run by themselves on the next page load.</p>
+    <p class="pb-small pb-muted">Source: <code><?= pb_e(pb_update_url() !== '' ? pb_update_url() : 'switched off') ?></code></p>
+  </div>
 </div>
 <?php elseif ($stab === 'code'): ?>
 <div class="pb-two-col">
@@ -1751,11 +1813,21 @@ foreach (pb_admin_pages() as $apKey => $ap) array_splice($nav, count($nav) - 1, 
       </div>
     </div>
     <?php endif; ?>
+    <?php if (pb_can($user, 'settings.manage') && !($view === 'settings' && ($_GET['tab'] ?? '') === 'updates') && ($avail = pb_update_available()) && !pb_update_blockers()): ?>
+    <div class="pb-upgrade pb-update-banner" role="status">
+      <div class="pb-upgrade-head">
+        <span class="pb-upgrade-icon" aria-hidden="true">🪁</span>
+        <div><strong>JotKite <?= pb_e($avail['version']) ?> is available</strong>
+          <span class="pb-small pb-muted">You have <?= pb_e(PB_VERSION) ?>. Updating takes a few seconds and can be rolled back.</span></div>
+        <a class="pb-btn pb-btn-sm pb-btn-primary" href="<?= pb_e(pb_admin_url('view=settings&tab=updates')) ?>">See what's new</a>
+      </div>
+    </div>
+    <?php endif; ?>
     <?php if (pb_can($user, 'settings.manage') && ($up = pb_upgrade_notice())): $notes = pb_changelog_between((string) $up['from'], (string) $up['to']); ?>
     <div class="pb-upgrade" role="status">
       <div class="pb-upgrade-head">
         <span class="pb-upgrade-icon" aria-hidden="true">⬆️</span>
-        <div><strong>JotKite was upgraded automatically to version <?= pb_e($up['to']) ?></strong>
+        <div><strong>JotKite was updated to version <?= pb_e($up['to']) ?></strong>
           <span class="pb-small pb-muted"><?= $up['from'] !== '' ? 'from ' . pb_e($up['from']) . ' · ' : '' ?><?= pb_e(pb_format_date($up['at'], 'j M Y, g:i a')) ?></span></div>
         <form method="post" class="pb-upgrade-dismiss"><?= pb_csrf_field() ?><input type="hidden" name="do" value="upgrade_dismiss"><input type="hidden" name="back" value="<?= pb_e($view) ?>">
           <button class="pb-btn pb-btn-sm">Dismiss</button></form>

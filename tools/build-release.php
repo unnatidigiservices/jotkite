@@ -8,6 +8,7 @@
  * https://app.unnatidigiservices.in/georank/includes/postbase/):
  *
  *   postbase/manifest.json          version, changelog, and the sha256 of every file
+ *   postbase/manifest.sig           RSA-SHA256 signature of manifest.json (one-click updates require it)
  *   postbase/<version>/<path>.txt   each file, with ".txt" added so the host
  *                                   serves it as a download and never runs it
  *   postbase/.htaccess              belt-and-braces: nothing in here executes
@@ -75,12 +76,26 @@ $manifest = [
     'changelog' => $changelog,
     'files' => $manifestFiles,
 ];
-file_put_contents($out . '/manifest.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n");
+$manifestJson = json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n";
+file_put_contents($out . '/manifest.json', $manifestJson);
+
+// Sign the manifest (RSA-SHA256) so sites only install genuine releases (lib/update.php).
+// The private key lives OUTSIDE the repository: $JOTKITE_SIGNING_KEY, or ../jotkite-keys/release-private.pem.
+$keyFile = getenv('JOTKITE_SIGNING_KEY') ?: dirname($root) . '/jotkite-keys/release-private.pem';
+@unlink($out . '/manifest.sig');
+if (is_file($keyFile) && ($pk = openssl_pkey_get_private((string) file_get_contents($keyFile)))) {
+    openssl_sign($manifestJson, $sig, $pk, OPENSSL_ALGO_SHA256);
+    file_put_contents($out . '/manifest.sig', base64_encode($sig) . "\n");
+    $signed = 'signed';
+} else {
+    fwrite(STDERR, "WARNING: no signing key at $keyFile; manifest.sig not written. Sites will refuse this release for one-click updates.\n");
+    $signed = 'UNSIGNED';
+}
 file_put_contents($out . '/.htaccess', "# JotKite release files: downloads only, nothing here may execute.\n"
     . "Options -Indexes -ExecCGI\n"
     . "<IfModule mod_mime.c>\n  RemoveHandler .php .phtml .html .htm\n  RemoveType .php .phtml\n  AddType text/plain .txt\n</IfModule>\n"
     . "<FilesMatch \"\\.(php\\d?|phtml|phar|html?)$\">\n  <IfModule mod_authz_core.c>\n    Require all denied\n  </IfModule>\n"
     . "  <IfModule !mod_authz_core.c>\n    Order allow,deny\n    Deny from all\n  </IfModule>\n</FilesMatch>\n");
 
-echo "JotKite $version: " . count($manifestFiles) . " files -> $out\n";
+echo "JotKite $version ($signed): " . count($manifestFiles) . " files -> $out\n";
 foreach ($manifestFiles as $rel => $info) printf("  %-32s %7d  %s\n", $rel, $info['size'], substr($info['sha256'], 0, 12));

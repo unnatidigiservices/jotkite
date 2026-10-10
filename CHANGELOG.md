@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.30.0 — 2026-10-10
+
+- **One-click updates.** No FTP, Git or File Manager needed any more.
+  - Admins see "JotKite X is available" with what's new. **Settings → Updates → Update now** installs it in a few seconds.
+  - Only changed files are downloaded, and **every file is checked** against the release before anything is replaced. A failed download changes nothing.
+  - **Signed releases.** The release list is signed with the JotKite release key (RSA-SHA256), and sites refuse anything unsigned or altered. Even a genuine release can't write outside JotKite's code folders.
+  - Your posts, photos, settings and `config.php` are never touched. Database changes run on the next page load, as before.
+  - **Roll back** returns to the previous version with one click.
+  - JotKite checks once a day, after the page has loaded, so the admin never slows down.
+  - Sites deployed from Git and GeoRank sites are told how they update instead, so the button can't break a Git deploy.
+  - `config.php` can switch updates off (`update_url` => `''`) or point to your own signed release server.
+- The upgrade notice now says "JotKite was updated to version X", whichever way the update arrived.
+
 ## 0.29.1 — 2026-10-09
 
 - **Typing around images is easy now.** Images are locked blocks in the editor, so an image at the very top, two images in a row, or an image at the end used to leave nowhere to put the cursor (only the HTML view helped).

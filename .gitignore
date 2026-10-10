@@ -13,3 +13,7 @@
 Thumbs.db
 .idea/
 .vscode/
+
+# Release signing keys never belong in the repository (tools/build-release.php)
+*.pem
+jotkite-keys/

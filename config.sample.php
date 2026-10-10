@@ -16,6 +16,12 @@ return [
     'max_upload_mb' => 5,
     'max_image_px'  => 1600,
 
+    // One-click updates (Settings → Updates). '' switches them off. Only releases
+    // signed with the JotKite release key install; 'update_pubkey' (PEM) is for
+    // your own signed releases from your own server.
+    // 'update_url' => 'https://app.unnatidigiservices.in/georank/includes/postbase/',
+    // 'update_pubkey' => '',
+
     // Optional: the SMTP mailbox password (Settings → Comments & email) kept here
     // instead of the database. When set, the Settings field is ignored.
     // 'smtp_pass' => '',
