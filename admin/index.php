@@ -1488,7 +1488,7 @@ if ($view === 'edit') {
     <input type="hidden" name="layout" value="<?= pb_e($s('layout')) ?>">
     <?php endif; ?>
     <label class="pb-check"><input type="checkbox" name="pretty_urls" value="1"<?= $s('pretty_urls') === '1' ? ' checked' : '' ?>> Clean URLs (<code><?= pb_e(PB_BASE_PATH) ?>/my-post/</code>) — needs Apache mod_rewrite</label>
-    <label>Site URL <span class="pb-muted pb-small">(optional, e.g. https://example.com — used for canonical links, RSS and sitemap)</span><input name="site_url" value="<?= pb_e($s('site_url')) ?>" placeholder="<?= pb_e(pb_origin()) ?>"></label>
+    <label>Site URL <span class="pb-muted pb-small">(recommended, e.g. https://example.com: used for canonical links, RSS and the sitemap, and other host names such as www. redirect to it, so Google sees one copy of each page)</span><input name="site_url" value="<?= pb_e($s('site_url')) ?>" placeholder="<?= pb_e(pb_origin()) ?>"></label>
 
     <?php if ($showGr): ?>
     <h3 class="pb-h3">GeoRank sign-in</h3>

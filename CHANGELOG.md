@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.30.1 — 2026-10-12
+
+- **One address per page, for Google.** Search Console reported "Duplicate, Google chose different canonical than user", because the same page answered at several addresses.
+  - With **Settings → General → Site URL** set, another host name (for example `www.`) now answers **301** to the Site URL, keeping the path. Before, `www.yoursite.com` served a full second copy of the site, with canonical tags pointing at itself. http→https is left to your host.
+  - Posts and pages reached at `/my-post` (no slash), `/?p=my-post` or `/index.php?p=my-post` now answer **301** to `/my-post/` when clean URLs are on, keeping other parameters such as `utm_source`. Draft previews and the homepage aren't redirected.
+  - The Site URL hint in Settings says why it matters.
+
 ## 0.30.0 — 2026-10-10
 
 - **One-click updates.** No FTP, Git or File Manager needed any more.

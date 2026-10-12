@@ -22,6 +22,20 @@ pb_load_plugins();
 // Comments, likes, unsubscribe (lib/engage.php): index.php?engage=…
 if (isset($_GET['engage'])) pb_engage_route((string) $_GET['engage']);
 
+// One address per site: with Settings → General → Site URL set, another host
+// name (www. vs no www) answers 301 to it, so search engines never see a second
+// copy of every page. GET/HEAD only. http→https is left to the host: behind some
+// proxies PHP can't tell it's on HTTPS, and redirecting on that could loop.
+$pbMethod = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$pbSiteUrl = rtrim((string) pb_setting('site_url'), '/');
+if (($pbMethod === 'GET' || $pbMethod === 'HEAD') && $pbSiteUrl !== '' && preg_match('~^(https?)://([^/]+)~i', $pbSiteUrl, $pbSite)) {
+    $pbHost = strtolower(preg_replace('/[^a-z0-9.\-:\[\]]/i', '', $_SERVER['HTTP_HOST'] ?? ''));
+    if ($pbHost !== '' && $pbHost !== strtolower($pbSite[2])) {
+        header('Location: ' . strtolower($pbSite[1]) . '://' . $pbSite[2] . ($_SERVER['REQUEST_URI'] ?? '/'), true, 301);
+        exit;
+    }
+}
+
 // ---- route -----------------------------------------------------------------
 $route = (string) ($_GET['route'] ?? '');
 if ($route === '' && !isset($_GET['p']) && !isset($_GET['c']) && !isset($_GET['feed'])) {
@@ -182,6 +196,17 @@ if ($view === 'post') {
         $user = pb_current_user();
         if ($user && pb_can($user, 'post.view', $post)) $preview = true;
         else $post = null;
+    }
+    // One address per post: /my-post, /?p=my-post and /index.php?p=my-post answer
+    // 301 to /my-post/ (clean URLs on), instead of a duplicate copy of the page.
+    if ($post && !$preview && empty($isFront) && pb_setting('pretty_urls') === '1' && ($pbMethod === 'GET' || $pbMethod === 'HEAD')) {
+        $want = pb_url('post', $post['slug']);
+        $have = rawurldecode((string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH));
+        if ($have !== $want) {
+            $keep = array_diff_key($_GET, ['p' => 1, 'route' => 1]);
+            header('Location: ' . $want . ($keep ? '?' . http_build_query($keep) : ''), true, 301);
+            exit;
+        }
     }
     if ($post) {
         $url = pb_abs_url(pb_url('post', $post['slug']));
