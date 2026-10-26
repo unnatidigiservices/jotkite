@@ -97,6 +97,17 @@ function pb_app_head() {
          . '<meta name="apple-mobile-web-app-title" content="JotKite">' . "\n"
          . '<meta name="apple-mobile-web-app-status-bar-style" content="default">' . "\n";
 }
+// Changes the signed-in user's password from current_password/new_password.
+// Returns true (changed), null (nothing asked) or an error message.
+function pb_account_password_change($user) {
+    $new = (string) ($_POST['new_password'] ?? '');
+    if ($new === '' || $user['source'] !== 'local') return null;
+    if (!password_verify((string) ($_POST['current_password'] ?? ''), (string) $user['password_hash'])) return 'Password not changed: your current password is wrong.';
+    if (strlen($new) < 8) return 'Password not changed: use at least 8 characters.';
+    pb_q('UPDATE users SET password_hash = ? WHERE id = ?', [password_hash($new, PASSWORD_DEFAULT), $user['id']]);
+    pb_device_forget_all($user['id'], true);
+    return true;
+}
 function pb_csrf_field() {
     return '<input type="hidden" name="_csrf" value="' . pb_e(pb_csrf_token()) . '">';
 }
@@ -332,9 +343,10 @@ if ($isPost) {
     // demo accounts themselves. The owner unlocks them with demo_key.
     if (pb_demo_locked()) {
         $target = in_array($do, ['user_save', 'user_toggle'], true) ? pb_row('SELECT * FROM users WHERE id = ?', [(int) ($_POST['id'] ?? 0)]) : null;
-        $back = ['code_save' => 'view=settings&tab=code', 'robots_sitemap' => 'view=settings', 'account_save' => 'view=account', 'user_save' => 'view=users', 'user_toggle' => 'view=users'];
+        $back = ['code_save' => 'view=settings&tab=code', 'robots_sitemap' => 'view=settings', 'account_save' => 'view=account', 'password_save' => 'view=account', 'user_save' => 'view=users', 'user_toggle' => 'view=users'];
         if (in_array($do, ['code_save', 'robots_sitemap'], true)
             || ($do === 'account_save' && (string) ($_POST['new_password'] ?? '') !== '')
+            || $do === 'password_save'
             || ($target && pb_demo_is_demo_user($target))) {
             pb_flash('That is switched off in the demo, so every visitor gets a working site. It works normally on your own blog.', 'info');
             pb_redirect($back[$do] ?? '');
@@ -610,29 +622,32 @@ if ($isPost) {
             pb_q('UPDATE users SET bio_long = ?, avatar = ?, show_name = ?, show_box = ?, public_page = ? WHERE id = ?',
                 [$cut($_POST['bio_long'], 1000), $avatar, empty($_POST['show_name']) ? 0 : 1, empty($_POST['show_box']) ? 0 : 1, empty($_POST['public_page']) ? 0 : 1, $user['id']]);
         }
+        // Everything else is saved even when the username can't be (a browser's password
+        // autofill used to put the login email here, and that error discarded the rest).
+        $problems = [];
         $uname = trim((string) ($_POST['username'] ?? ''));
         if ($uname !== '' && strcasecmp($uname, (string) ($user['username'] ?? '')) !== 0) {
             $clean = pb_username_clean($uname);
-            if ($clean === '' || $clean !== strtolower($uname)) { pb_flash('Usernames need 3–30 letters, digits, dots, dashes or underscores (no spaces).', 'error'); pb_redirect('view=account'); }
-            if ((int) pb_val('SELECT COUNT(*) FROM users WHERE username = ? AND id != ?', [$clean, $user['id']])) { pb_flash('That username is already taken.', 'error'); pb_redirect('view=account'); }
-            pb_q('UPDATE users SET username = ? WHERE id = ?', [$clean, $user['id']]);
+            if ($clean === '' || $clean !== strtolower($uname)) $problems[] = 'Username not changed: use 3–30 letters, digits, dots, dashes or underscores (no spaces or @).';
+            elseif ((int) pb_val('SELECT COUNT(*) FROM users WHERE username = ? AND id != ?', [$clean, $user['id']])) $problems[] = 'Username not changed: "' . $clean . '" is already taken.';
+            else pb_q('UPDATE users SET username = ? WHERE id = ?', [$clean, $user['id']]);
         }
         if (array_key_exists('default_category_id', $_POST)) {
             $dc = (int) $_POST['default_category_id'];
             if ($dc && !pb_val('SELECT id FROM categories WHERE id = ?', [$dc])) $dc = 0;
             pb_q('UPDATE users SET default_category_id = ? WHERE id = ?', [$dc ?: null, $user['id']]);
         }
-        $new = (string) ($_POST['new_password'] ?? '');
-        if ($new !== '' && $user['source'] === 'local') {
-            if (!password_verify((string) ($_POST['current_password'] ?? ''), (string) $user['password_hash'])) {
-                pb_flash('Your current password is wrong.', 'error'); pb_redirect('view=account');
-            }
-            if (strlen($new) < 8) { pb_flash('Use at least 8 characters.', 'error'); pb_redirect('view=account'); }
-            pb_q('UPDATE users SET password_hash = ? WHERE id = ?', [password_hash($new, PASSWORD_DEFAULT), $user['id']]);
-            pb_device_forget_all($user['id'], true);
-        }
-        pb_flash('Account updated.');
+        $pw = pb_account_password_change($user);
+        if ($pw === true) pb_flash('Password changed. Your other devices were signed out.');
+        elseif (is_string($pw)) $problems[] = $pw;
+        pb_flash($problems ? 'Saved, except: ' . implode(' ', $problems) : 'Account updated.', $problems ? 'error' : 'ok');
         pb_redirect('view=account');
+    }
+    if ($do === 'password_save') {
+        $pw = pb_account_password_change($user);
+        if ($pw === true) pb_flash('Password changed. Your other devices were signed out.');
+        else pb_flash(is_string($pw) ? $pw : 'Type your current password and a new one.', 'error');
+        pb_redirect('view=account#password');
     }
     if ($do === 'device_forget') {
         $d = pb_row('SELECT selector FROM devices WHERE id = ? AND user_id = ?', [(int) ($_POST['id'] ?? 0), $user['id']]);
@@ -1613,7 +1628,8 @@ if ($view === 'edit') {
     <?= $user['source'] === 'georank' ? '<span class="pb-small pb-muted">Signed in through GeoRank</span>' : '<span class="pb-small pb-muted">' . pb_e($user['email']) . '</span>' ?></p>
   <label>Display name (shown on your posts)<input name="name" required maxlength="80" value="<?= pb_e($user['name']) ?>"></label>
   <label>Username <span class="pb-small pb-muted">(<?= $user['source'] === 'local' ? 'sign in with it or your email; ' : '' ?>your author page is <code><?= pb_e(pb_url('author', $user['username'] ?: 'username')) ?></code>)</span>
-    <input name="username" value="<?= pb_e($user['username'] ?? '') ?>" autocapitalize="none" spellcheck="false" pattern="[A-Za-z0-9._-]{3,30}" maxlength="30"></label>
+    <?php /* Not a sign-in field: without autocomplete="off" and with a password box nearby, browsers filled it with the login email. */ ?>
+    <input name="username" value="<?= pb_e($user['username'] ?? '') ?>" autocomplete="off" data-lpignore="true" data-1p-ignore autocapitalize="none" spellcheck="false" pattern="[A-Za-z0-9._\-]{3,30}" maxlength="30" title="3–30 letters, digits, dots, dashes or underscores"></label>
 
   <h3 class="pb-h3">Public profile</h3>
   <div class="pb-avatar-field"><?= pb_image_field('avatar', $user['avatar'] ?? '', 'Profile photo', 'Square works best. Shown round, next to your bio.') ?></div>
@@ -1633,13 +1649,20 @@ if ($view === 'edit') {
     <?php foreach ($myCats as $c): ?><option value="<?= (int) $c['id'] ?>"<?= (int) ($user['default_category_id'] ?? 0) === (int) $c['id'] ? ' selected' : '' ?>><?= pb_e($c['name']) ?></option><?php endforeach; ?>
   </select><span class="pb-small pb-muted">Preselected when you start a post; you can still change it on each post.</span></label>
   <?php endif; ?>
-  <?php if ($user['source'] === 'local'): ?>
-    <h3 class="pb-h3">Change password</h3>
-    <label>Current password<input type="password" name="current_password" autocomplete="current-password"></label>
-    <label>New password<input type="password" name="new_password" minlength="8" autocomplete="new-password"></label>
-  <?php endif; ?>
   <button class="pb-btn pb-btn-primary">Save</button>
 </form>
+<?php if ($user['source'] === 'local'): ?>
+<?php /* Its own form: with password boxes inside the profile form, browsers treated it as a
+         sign-in form and autofilled the Username box with the login email. */ ?>
+<form method="post" class="pb-card pb-narrow" id="password">
+  <?= pb_csrf_field() ?><input type="hidden" name="do" value="password_save">
+  <h3 class="pb-h3">Change password</h3>
+  <input type="text" name="pm_login" value="<?= pb_e($user['email']) ?>" autocomplete="username" readonly hidden>
+  <label>Current password<input type="password" name="current_password" autocomplete="current-password" required></label>
+  <label>New password<input type="password" name="new_password" minlength="8" autocomplete="new-password" required></label>
+  <button class="pb-btn">Change password</button>
+</form>
+<?php endif; ?>
 <div class="pb-card pb-narrow pb-app-card">
   <h3 class="pb-h3">📲 JotKite on your phone</h3>
   <p class="pb-small">Add the admin to your phone's home screen: it opens like an app, straight on <strong>Write</strong>, and stays signed in.</p>

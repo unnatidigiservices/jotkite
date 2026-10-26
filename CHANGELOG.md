@@ -6,6 +6,10 @@
   - JotKite now keeps everything else in that file (favicon, verification tags, Pixel and other custom code) and drops only the tags it writes for the page itself: `og:image`, `twitter:image`, `twitter:card`, `og:title`, `og:url`, `og:type`, the description and the canonical link.
   - A post with no image at all still gets GeoRank's site image, as its only one.
   - Shared links update when each network re-reads the page. Use Facebook's Sharing Debugger ("Scrape again") for posts already shared.
+- **My account: changing your display name works with password autofill.** Browsers treated the page as a sign-in form (it had password boxes) and filled the Username box with the login email. That made the save stop with a username error, losing the other changes, so it looked as if the name couldn't change.
+  - **Change password** is now a separate box with its own button, so browsers leave the profile alone.
+  - The Username box is marked as not a sign-in field, and its format check works again in current browsers.
+  - A problem with one field no longer discards the rest. You get "Saved, except: …" naming what didn't change.
 
 ## 0.31.0 — 2026-10-26
 
