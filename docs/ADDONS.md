@@ -123,6 +123,7 @@ pb_add_filter('pb_post_content', function ($html, $post) {
 | `pb_sitemap` | action | echo extra `<url><loc>…</loc></url>` lines into sitemap.xml (0.27) |
 | `pb_editor_toolbar` | action | `$post, $user`: echo extra buttons into the editor toolbar. Use your own `data-*` attribute, not `data-cmd` (0.31) |
 | `pb_admin_footer` | action | `$view, $user`: echo your admin `<link>`/`<script>` tags; printed after admin.js, so `window.PBEditor` is ready on the editor (0.31) |
+| `pb_link_search` | filter | `$items, $q`: the editor link popup's results; add `['title' => …, 'url' => …, 'label' => …]` items (0.31) |
 | `pb_comment_form` | action | `$post`: echo extra fields into the comment form, e.g. a star rating (0.28) |
 | `pb_comment_check` | filter | `'', ['body', 'name', 'user'], $post`: return an error message to refuse a comment (0.28) |
 | `pb_comment_saved` | action | `$comment, $post`: a comment was stored (pending or live); read your form fields from `$_POST` (0.28) |

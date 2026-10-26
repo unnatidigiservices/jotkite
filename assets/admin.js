@@ -879,8 +879,8 @@
         .then((r) => r.json()).then((items) => {
           linkIndex = -1;
           list.innerHTML = items.length ? items.map((it, i) => '<li role="option" data-i="' + i + '" data-url="' + esc(it.url) + '" data-title="' + esc(it.title) + '">'
-            + '<strong>' + esc(it.title) + '</strong><span>' + (it.type === 'page' ? 'Page' : 'Post') + (it.date ? ' · ' + esc(it.date) : '') + '</span></li>').join('')
-            : '<li class="pb-link-none">' + (q ? 'No published post or page matches.' : 'No published posts yet.') + '</li>';
+            + '<strong>' + esc(it.title) + '</strong><span>' + esc(it.label || (it.type === 'page' ? 'Page' : 'Post')) + (it.date ? ' · ' + esc(it.date) : '') + '</span></li>').join('')
+            : '<li class="pb-link-none">' + (q ? 'Nothing matches. Paste a full link (https://…) instead.' : 'No published posts yet.') + '</li>';
         }).catch(() => { list.innerHTML = ''; });
     }, q ? 180 : 0);
   }

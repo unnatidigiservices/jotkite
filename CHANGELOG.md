@@ -5,6 +5,7 @@
 - **GeoRank Blocks** (premium, included with Unnati GeoRank). On a GeoRank site the editor gains two buttons:
   - **▭ Panel:** GeoRank's **Single Column Panel**, a highlighted box for an offer, a note, pros and cons or a summary. It has 9 styles, an optional emoji, width, alignment, corners, shadow, border, padding and an accent bar.
   - **📞 Buttons:** GeoRank's **CTA Buttons**: Call + WhatsApp + Map, Call + WhatsApp, or one button (Contact, Book now, Map or any link), in 5 colours, with icons. The site's WhatsApp number and message are filled in from GeoRank.
+  - **Link to your GeoRank pages easily.** In the link popup (🔗 or Ctrl+K), typing a page name such as "pricing" or "features" now offers your site's own pages, labelled "Site page", next to blog posts. The CTA dialog's link box suggests the same pages. It uses the same pages as GeoRank's own link picker (every page with a title, but not ad landing pages).
   - Both use GeoRank's own markup, so the site stylesheet styles them exactly like the rest of the site. Click a block for Edit, ↑ Text above, ↓ Text below or Remove.
   - On save, each block is rebuilt from checked values only. Panel styles are recomputed from the chosen options, and buttons keep only a safe link and plain-text label (WhatsApp buttons must point to wa.me). Icons are drawn at display time, never stored.
   - The addon switches itself on for GeoRank sites. Elsewhere it shows as "Available on Unnati GeoRank sites only", and a GeoRank block in a post there becomes plain content.

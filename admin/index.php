@@ -304,7 +304,8 @@ if (($_GET['ajax'] ?? '') === 'links') {
     foreach (pb_all("SELECT slug, title, type, published_at FROM posts WHERE {$where} ORDER BY type = 'page', published_at DESC LIMIT " . ($q === '' ? 10 : 20), $params) as $r) {
         $out[] = ['title' => $r['title'], 'url' => pb_url('post', $r['slug']), 'type' => $r['type'], 'date' => $r['type'] === 'post' ? pb_format_date($r['published_at']) : ''];
     }
-    pb_json($out);
+    // Addons can add their own link targets: items {title, url, label} (e.g. the GeoRank site's pages).
+    pb_json(array_values((array) pb_apply_filters('pb_link_search', $out, $q)));
 }
 // Media library for the image picker (editor, featured image, design images): newest first, 40 per page.
 if (($_GET['ajax'] ?? '') === 'media') {
