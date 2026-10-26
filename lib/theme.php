@@ -146,7 +146,19 @@ function pb_render_page(array $meta, $content) {
         if (!defined('GEORANK_INCLUDE')) define('GEORANK_INCLUDE', true);
         $assets = pb_georank_page_assets();
         echo "<!DOCTYPE html>\n<html lang=\"" . pb_e($lang) . "\">\n<head>\n" . $head;
-        if (is_file(PB_SITE_DIR . '/meta-global.html')) include PB_SITE_DIR . '/meta-global.html';
+        if (is_file(PB_SITE_DIR . '/meta-global.html')) {
+            // GeoRank's sitewide head (Site Settings) carries the site's own social tags
+            // (og:image, twitter:image…). Printed as-is, every post had two og:image tags with
+            // the site default first, and Facebook/WhatsApp/LinkedIn took that one. Keep
+            // everything else (favicon, verification, custom code); drop the tags this page sets itself.
+            ob_start();
+            include PB_SITE_DIR . '/meta-global.html';
+            $own = ['og:type', 'og:title', 'og:url'];
+            if ($desc !== '') $own[] = 'og:description';
+            if ($desc !== '') $own[] = 'description';
+            if ($image !== '') array_push($own, 'og:image', 'twitter:image', 'twitter:card'); // no image of ours: GeoRank's stays as the fallback
+            echo pb_strip_head_tags((string) ob_get_clean(), $own, $canonical !== '');
+        }
         echo "\n" . $assets['head'];
         echo pb_css_tag(PB_ROOT . '/assets/blog.css', $blogCss) . $tail;
         echo "</head>\n<body class=\"pb-page pb-georank\">\n";
@@ -200,6 +212,21 @@ function pb_render_page(array $meta, $content) {
        . '<footer class="pb-footer"><div class="pb-wrap">&copy; ' . date('Y') . ' ' . pb_e(pb_setting('blog_title'))
        . ' &middot; Powered by <a href="' . PB_HOMEPAGE . '" rel="noopener">JotKite</a></div></footer>' . "\n"
        . $bodyEnd . "</body>\n</html>\n";
+}
+
+/**
+ * Remove <meta> tags whose property/name is in $keys (case-insensitive, any
+ * attribute order or quoting), and <link rel="canonical"> when $canonical.
+ * Used on GeoRank's meta-global.html so a blog page has one of each.
+ */
+function pb_strip_head_tags($html, array $keys, $canonical = false) {
+    $keys = array_map('strtolower', $keys);
+    $html = preg_replace_callback('~<meta\b[^>]*>~i', function ($m) use ($keys) {
+        if (preg_match('~\b(?:property|name)\s*=\s*(["\']?)([^"\'\s>]+)\1~i', $m[0], $a) && in_array(strtolower($a[2]), $keys, true)) return '';
+        return $m[0];
+    }, (string) $html);
+    if ($canonical) $html = preg_replace('~<link\b[^>]*\brel\s*=\s*(["\']?)canonical\1[^>]*>~i', '', $html);
+    return preg_replace("~\n[ \t]*\n(?=[ \t]*\n)~", "\n", $html); // no stacks of blank lines where tags were
 }
 
 // A small stylesheet goes straight into the page: no extra request blocking the

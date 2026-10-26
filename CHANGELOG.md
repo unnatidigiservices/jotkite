@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.31.1 — 2026-10-26
+
+- **One share image per post on GeoRank sites.** Every blog post had two `og:image` and `twitter:image` tags: GeoRank's sitewide share image first (from Site Settings, `meta-global.html`), then the post's own. Facebook, WhatsApp and LinkedIn take the first, so shared posts showed the site image instead of the post's photo.
+  - JotKite now keeps everything else in that file (favicon, verification tags, Pixel and other custom code) and drops only the tags it writes for the page itself: `og:image`, `twitter:image`, `twitter:card`, `og:title`, `og:url`, `og:type`, the description and the canonical link.
+  - A post with no image at all still gets GeoRank's site image, as its only one.
+  - Shared links update when each network re-reads the page. Use Facebook's Sharing Debugger ("Scrape again") for posts already shared.
+
 ## 0.31.0 — 2026-10-26
 
 - **GeoRank Blocks** (premium, included with Unnati GeoRank). On a GeoRank site the editor gains two buttons:
