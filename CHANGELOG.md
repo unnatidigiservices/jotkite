@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.31.0 — 2026-10-26
+
+- **GeoRank Blocks** (premium, included with Unnati GeoRank). On a GeoRank site the editor gains two buttons:
+  - **▭ Panel:** GeoRank's **Single Column Panel**, a highlighted box for an offer, a note, pros and cons or a summary. It has 9 styles, an optional emoji, width, alignment, corners, shadow, border, padding and an accent bar.
+  - **📞 Buttons:** GeoRank's **CTA Buttons**: Call + WhatsApp + Map, Call + WhatsApp, or one button (Contact, Book now, Map or any link), in 5 colours, with icons. The site's WhatsApp number and message are filled in from GeoRank.
+  - Both use GeoRank's own markup, so the site stylesheet styles them exactly like the rest of the site. Click a block for Edit, ↑ Text above, ↓ Text below or Remove.
+  - On save, each block is rebuilt from checked values only. Panel styles are recomputed from the chosen options, and buttons keep only a safe link and plain-text label (WhatsApp buttons must point to wa.me). Icons are drawn at display time, never stored.
+  - The addon switches itself on for GeoRank sites. Elsewhere it shows as "Available on Unnati GeoRank sites only", and a GeoRank block in a post there becomes plain content.
+- For addon developers: `pb_add_block_sanitizer()`, the `pb_editor_toolbar` and `pb_admin_footer` hooks, `window.PBEditor` (insert HTML, lines around blocks), `data-pb-block`, and `"georank_only"` in addon.json. See docs/ADDONS.md.
+- The editor's "＋ Add text here" lines now appear around any block an addon marks, not only images.
+
 ## 0.30.1 — 2026-10-12
 
 - **One address per page, for Google.** Search Console reported "Duplicate, Google chose different canonical than user", because the same page answered at several addresses.

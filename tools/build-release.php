@@ -40,6 +40,20 @@ foreach ($it as $f) {
     if (preg_match('#(^|/)\.#', $rel)) continue;
     $files[$rel] = $f->getPathname();
 }
+// Premium addons included with Unnati GeoRank (e.g. georank-blocks). They live
+// OUTSIDE the public repository: $JOTKITE_PREMIUM_DIR, or ../PostBase-premium/.
+// Only addons/ from there is taken; a build without that folder simply has none.
+$premium = getenv('JOTKITE_PREMIUM_DIR') ?: dirname($root) . '/PostBase-premium';
+$premiumCount = 0;
+if (is_dir($premium . '/addons')) {
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($premium . '/addons', FilesystemIterator::SKIP_DOTS)) as $f) {
+        if ($f->isDir()) continue;
+        $rel = 'addons/' . str_replace('\\', '/', substr($f->getPathname(), strlen($premium . '/addons') + 1));
+        if (preg_match('#(^|/)\.#', $rel)) continue;
+        $files[$rel] = $f->getPathname();
+        $premiumCount++;
+    }
+}
 ksort($files);
 
 // PHP must lint cleanly before anything is published.
@@ -97,5 +111,5 @@ file_put_contents($out . '/.htaccess', "# JotKite release files: downloads only,
     . "<FilesMatch \"\\.(php\\d?|phtml|phar|html?)$\">\n  <IfModule mod_authz_core.c>\n    Require all denied\n  </IfModule>\n"
     . "  <IfModule !mod_authz_core.c>\n    Order allow,deny\n    Deny from all\n  </IfModule>\n</FilesMatch>\n");
 
-echo "JotKite $version ($signed): " . count($manifestFiles) . " files -> $out\n";
+echo "JotKite $version ($signed): " . count($manifestFiles) . " files" . ($premiumCount ? " incl. $premiumCount premium" : '') . " -> $out\n";
 foreach ($manifestFiles as $rel => $info) printf("  %-32s %7d  %s\n", $rel, $info['size'], substr($info['sha256'], 0, 12));

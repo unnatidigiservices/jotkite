@@ -121,6 +121,8 @@ pb_add_filter('pb_post_content', function ($html, $post) {
 | `pb_editor_panel` | action | `$post, $user, $canEdit`: echo a card into the editor's side column (0.27) |
 | `pb_admin_post` | action | `$do, $user`: handle your own admin form posts; CSRF is already checked (0.27) |
 | `pb_sitemap` | action | echo extra `<url><loc>…</loc></url>` lines into sitemap.xml (0.27) |
+| `pb_editor_toolbar` | action | `$post, $user`: echo extra buttons into the editor toolbar. Use your own `data-*` attribute, not `data-cmd` (0.31) |
+| `pb_admin_footer` | action | `$view, $user`: echo your admin `<link>`/`<script>` tags; printed after admin.js, so `window.PBEditor` is ready on the editor (0.31) |
 | `pb_comment_form` | action | `$post`: echo extra fields into the comment form, e.g. a star rating (0.28) |
 | `pb_comment_check` | filter | `'', ['body', 'name', 'user'], $post`: return an error message to refuse a comment (0.28) |
 | `pb_comment_saved` | action | `$comment, $post`: a comment was stored (pending or live); read your form fields from `$_POST` (0.28) |
@@ -176,6 +178,11 @@ pb_add_action('pb_sitemap', function () { echo '<url><loc>' . pb_e(pb_abs_url('/
 | `pb_addon_migrate($slug, $version, $fn)` | Create/upgrade your tables; runs in a transaction, once per version |
 | `pb_add_admin_page($key, $label, $icon, $render, $perm)` | Menu item + page at `/admin/?view=$key`; built-in names are reserved |
 | `pb_add_route($prefix, $handler)` | Public pages under `/$prefix/`; posts can no longer take that slug |
+| `pb_add_block_sanitizer($fn)` | Keep a block of your own through the HTML sanitizer (0.31). `$fn(DOMDocument $doc, DOMElement $div)` is called for every `<div>` with a class. Return `true` when it's yours: you then own that element, so rebuild its attributes from values you validated yourself and call `pb_sanitize_children($doc, $div)` for any ordinary content inside. Return `false` otherwise. Unknown divs are still unwrapped. |
+
+**Editor API (0.31).** On the editor page, `window.PBEditor` offers `el` (the editor element), `insertHtml(html)` (at the cursor), `refresh()` (re-check blocks and the empty lines around them), `lineBeside(block, 'above'|'below')` and `markDirty()`. Mark your block's element with `data-pb-block` so the editor keeps a typeable line above and below it. Add `contenteditable="false"` if its inside shouldn't be typed in. Both attributes are removed before saving.
+
+**GeoRank-only addons (0.31).** `"georank_only": true` in addon.json makes a plugin switch on by itself on an Unnati GeoRank site, and it is never loaded anywhere else (Settings → Addons shows "Available on Unnati GeoRank sites only").
 
 Meta keys: up to 64 of `a-z 0-9 _ . : -`; prefix them with your slug (`places:rating`). Meta is deleted together with its post. Built-in galleries (`<figure class="pb-gallery">` with images) are available to plugins too: write that HTML into a post and the blog styles it and loads the photo viewer.
 

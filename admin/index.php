@@ -798,6 +798,8 @@ if ($view === 'edit') {
       <button type="button" data-cmd="justifyRight" title="Align right" aria-label="Align right"><?= $alignIcon('<rect x="1" y="2" width="14" height="2" rx="1"/><rect x="6" y="7" width="9" height="2" rx="1"/><rect x="3" y="12" width="12" height="2" rx="1"/>') ?></button>
       <span class="pb-tsep"></span>
       <button type="button" data-cmd="video" title="Embed YouTube or Vimeo">▶ Video</button>
+      <?php // Addons add their own block buttons here (give them a data-* of your own, not data-cmd). ?>
+      <?= pb_capture_action('pb_editor_toolbar', $p, $user) ?>
       <button type="button" data-cmd="removeFormat" title="Clear formatting">⌫</button>
       <button type="button" data-cmd="source" title="Edit HTML" class="pb-tright">&lt;/&gt;</button>
     </div>
@@ -1371,6 +1373,10 @@ if ($view === 'edit') {
   <?php if (!$plugins): ?><p class="pb-small pb-muted">No plugins installed yet.</p><?php endif; ?>
   <div class="pb-addon-grid">
     <?php foreach ($plugins as $a): $on = in_array($a['slug'], $activePlugins, true);
+        if (!empty($a['georank_only'])) { // included with Unnati GeoRank: on by itself there, unavailable elsewhere
+            $card($a, $on, '<span class="pb-small pb-muted">' . ($on ? '✓ Included with your GeoRank site' : 'Available on Unnati GeoRank sites only') . '</span>');
+            continue;
+        }
         $card($a, $on, $on ? $btn('addon_deactivate', $a['slug'], 'Deactivate') . ($a['settings'] ? ' <a class="pb-btn pb-btn-sm" href="#addon-' . pb_e($a['slug']) . '">Settings</a>' : '')
                            : (empty($a['error']) ? $btn('addon_activate', $a['slug'], 'Activate', true) : ''));
     endforeach; ?>
@@ -1848,6 +1854,8 @@ foreach (pb_admin_pages() as $apKey => $ap) array_splice($nav, count($nav) - 1, 
 <script>window.PB = <?= json_encode(['csrf' => pb_csrf_token(), 'endpoint' => pb_admin_url(), 'maxMb' => pb_config('max_upload_mb'), 'maxPx' => (int) pb_config('max_image_px'), 'keepMeta' => pb_setting('photo_metadata') !== 'strip','adminUrl' => pb_admin_url()]) ?>;</script>
 <script src="<?= pb_e(PB_BASE_PATH) ?>/assets/paste.js?v=<?= pb_e(PB_VERSION) ?>"></script>
 <script src="<?= pb_e(PB_BASE_PATH) ?>/assets/admin.js?v=<?= pb_e(PB_VERSION) ?>"></script>
+<?php // Addons: their own admin styles/scripts (after admin.js, so window.PBEditor exists on the editor). ?>
+<?= pb_capture_action('pb_admin_footer', $view, $user) ?>
 </body>
 </html>
 <?php

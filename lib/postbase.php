@@ -10,7 +10,7 @@
  */
 if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 
-define('PB_VERSION', '0.30.1');
+define('PB_VERSION', '0.31.0');
 define('PB_HOMEPAGE', 'https://jotkite.com');                             // project info, docs and support
 define('PB_REPO_URL', 'https://github.com/unnatidigiservices/jotkite');    // source code and issues
 define('PB_SCHEMA_VERSION', 8);
@@ -1243,6 +1243,18 @@ function pb_sanitize_html($html) {
     $out = preg_replace('~<p>(\s|&nbsp;|<br>)*</p>~i', '', $out); // empty paragraphs from the editor
     return trim($out);
 }
+/**
+ * Addons can keep a block of their own through the sanitizer:
+ *   pb_add_block_sanitizer(function (DOMDocument $doc, DOMElement $div) { … return true; });
+ * It's called for every <div> that has a class. Return true when you took it:
+ * you then own that element. Rebuild its attributes (and content) from
+ * values you validated yourself, and call pb_sanitize_children($doc, $div) for
+ * any part that holds ordinary post content. Return false to let JotKite
+ * handle it as usual (an unknown div is unwrapped).
+ */
+function pb_add_block_sanitizer(callable $fn) {
+    $GLOBALS['pb_block_sanitizers'][] = $fn;
+}
 function pb_sanitize_children(DOMDocument $doc, DOMNode $node) {
     static $allowed = [
         'p' => [], 'br' => [], 'h2' => ['id'], 'h3' => ['id'], 'h4' => ['id'],
@@ -1268,6 +1280,15 @@ function pb_sanitize_children(DOMDocument $doc, DOMNode $node) {
         $tag = strtolower($child->nodeName);
         if (in_array($tag, $drop, true)) { $node->removeChild($child); continue; }
 
+        if ($tag === 'div' && $child->getAttribute('class') !== '' && !empty($GLOBALS['pb_block_sanitizers'])) {
+            foreach ($GLOBALS['pb_block_sanitizers'] as $fn) {
+                try {
+                    if ($fn($doc, $child) === true) continue 2; // an addon's block (it sanitized it itself)
+                } catch (Throwable $e) {
+                    pb_addon_error($e, 'block sanitizer');
+                }
+            }
+        }
         if ($tag === 'div' || $tag === 'section' || $tag === 'article') {
             $hasBlock = false;
             foreach ($child->childNodes as $gc) {

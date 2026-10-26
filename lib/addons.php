@@ -170,7 +170,16 @@ function pb_active_theme() {
 }
 function pb_active_plugin_slugs() {
     $list = json_decode((string) pb_setting('plugins'), true);
-    return is_array($list) ? array_values(array_filter($list, 'is_string')) : [];
+    $list = is_array($list) ? array_values(array_filter($list, 'is_string')) : [];
+    // addon.json "georank_only": true — included with Unnati GeoRank: always on for a
+    // GeoRank site, never loaded anywhere else (even if someone ticks it).
+    $gr = pb_is_georank_site();
+    foreach (pb_addons() as $slug => $a) {
+        if (empty($a['georank_only'])) continue;
+        if ($gr && empty($a['error']) && !in_array($slug, $list, true)) $list[] = $slug;
+        if (!$gr) $list = array_values(array_diff($list, [$slug]));
+    }
+    return $list;
 }
 /** Include every active plugin once. Called by each entry point after the library loads. */
 function pb_load_plugins() {

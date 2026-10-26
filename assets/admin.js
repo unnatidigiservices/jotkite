@@ -592,6 +592,7 @@
     const clone = editor.cloneNode(true);
     $all('.pb-selected', clone).forEach((el) => el.classList.remove('pb-selected'));
     $all('[contenteditable]', clone).forEach((el) => el.removeAttribute('contenteditable'));
+    $all('[data-pb-block]', clone).forEach((el) => el.removeAttribute('data-pb-block'));
     $all('.pb-importing', clone).forEach((el) => el.classList.remove('pb-importing'));
     $all('[data-pb-import]', clone).forEach((el) => el.removeAttribute('data-pb-import'));
     $all('p.pb-pad', clone).forEach((p) => { if (p.textContent.trim() === '' && !p.querySelector('img')) p.remove(); else p.classList.remove('pb-pad', 'is-here'); });
@@ -675,10 +676,11 @@
     p.appendChild(document.createElement('br'));
     return p;
   }
-  function isBlock(el) { return !!el && el.nodeType === 1 && el.tagName === 'FIGURE'; }
+  // Blocks: figures, and any element an addon marks with data-pb-block (e.g. a panel or a button row).
+  function isBlock(el) { return !!el && el.nodeType === 1 && (el.tagName === 'FIGURE' || el.hasAttribute('data-pb-block')); }
   const blankP = (el) => !!el && el.tagName === 'P' && el.textContent.trim() === '' && !el.querySelector('img,a,iframe');
   function ensurePads() {
-    $all(':scope > figure', editor).forEach((f) => {
+    $all(':scope > figure, :scope > [data-pb-block]', editor).forEach((f) => {
       // An empty line already next to an image gets the same hint (and is dropped if unused).
       [f.previousElementSibling, f.nextElementSibling].forEach((s) => { if (blankP(s)) s.classList.add('pb-pad'); });
       if (!f.previousElementSibling || isBlock(f.previousElementSibling)) f.before(padLine());
@@ -742,6 +744,16 @@
     prepareFigures();
     dirty = true;
   }
+
+  // For addons' editor scripts (pb_admin_footer): insert blocks, add lines around them.
+  window.PBEditor = {
+    el: editor,
+    insertHtml: (html) => insertHtml(html),
+    refresh: () => prepareFigures(), // re-check blocks and the lines around them (doesn't count as a change)
+    lineBeside: (block, where) => lineBeside(block, where),
+    markDirty: () => { dirty = true; },
+  };
+  document.dispatchEvent(new CustomEvent('pb:editor-ready'));
 
   // ---- toolbar ----
   const toolbar = $('.pb-toolbar');
