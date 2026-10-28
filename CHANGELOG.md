@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.31.2 — 2026-10-28
+
+- **/blog/category/ is a real page now.** Opening the category address without a category name (for example by trimming a category URL) showed "Post not found". It now lists every category that has published posts, with its description, number of posts and latest date, each linking to its own page.
+  - It has a canonical link and CollectionPage structured data, and it's in the sitemap. With no categories yet it says so, and isn't indexed.
+  - Without clean URLs the same page is at `?c=`.
+
 ## 0.31.1 — 2026-10-26
 
 - **One share image per post on GeoRank sites.** Every blog post had two `og:image` and `twitter:image` tags: GeoRank's sitewide share image first (from Site Settings, `meta-global.html`), then the post's own. Facebook, WhatsApp and LinkedIn take the first, so shared posts showed the site image instead of the post's photo.

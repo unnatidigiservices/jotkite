@@ -56,7 +56,7 @@ if (isset($_GET['feed'])) {
     $view = 'post';
     $slug = (string) $_GET['p'];
 } elseif (isset($_GET['c'])) {
-    $view = 'category';
+    $view = (string) $_GET['c'] === '' ? 'categories' : 'category';
     $slug = (string) $_GET['c'];
 } elseif (isset($_GET['author'])) {
     $view = 'author';
@@ -75,6 +75,8 @@ if (isset($_GET['feed'])) {
     } elseif ($parts[0] === 'posts' && (count($parts) === 1 || (count($parts) === 3 && $parts[1] === 'page' && ctype_digit($parts[2])))) {
         $view = 'list'; // the post list when a Page is the homepage
         if (count($parts) === 3) $page = max(1, (int) $parts[2]);
+    } elseif ($parts[0] === 'category' && count($parts) === 1) {
+        $view = 'categories'; // /category/ on its own: every category (it used to be a "Post not found")
     } elseif ($parts[0] === 'category' && isset($parts[1])) {
         $view = 'category';
         $slug = $parts[1];
@@ -176,6 +178,7 @@ if ($view === 'sitemap') {
         $mod = max($p['updated_at'], $p['published_at']);
         echo '<url><loc>' . pb_e(pb_abs_url(pb_url('post', $p['slug']))) . '</loc><lastmod>' . substr($mod, 0, 10) . "</lastmod></url>\n";
     }
+    if ($cats) echo '<url><loc>' . pb_e(pb_abs_url(pb_url('category', ''))) . "</loc></url>\n"; // /category/: all of them
     foreach ($cats as $c) echo '<url><loc>' . pb_e(pb_abs_url(pb_url('category', $c['slug']))) . "</loc></url>\n";
     pb_do_action('pb_sitemap'); // addons print their own <url>…</url> lines
     // Public author pages of people with at least one published post.
@@ -374,6 +377,44 @@ if ($view === 'author') {
         'description' => $a['bio'] !== '' ? $a['bio'] : 'Posts by ' . $a['name'] . ' on ' . pb_setting('blog_title') . '.',
         'canonical' => $aurl, 'image' => $a['avatar'], 'type' => 'profile',
         'jsonld' => ['@context' => 'https://schema.org', '@type' => 'ProfilePage', 'mainEntity' => $person],
+    ], $content);
+    exit;
+}
+
+// ---- all categories (/category/) --------------------------------------------
+if ($view === 'categories') {
+    $rows = pb_all("SELECT c.name, c.slug, c.description, COUNT(p.id) AS n, MAX(p.published_at) AS latest
+                    FROM categories c JOIN posts p ON p.category_id = c.id
+                    WHERE $publicWhere$postsOnly GROUP BY c.id ORDER BY c.sort, c.name", ['now' => $now]);
+    $url = pb_abs_url(pb_url('category', ''));
+    ob_start(); ?>
+<div class="pb-wrap">
+  <nav class="pb-crumbs" aria-label="Breadcrumb"><a href="<?= pb_e(pb_url('posts')) ?>"><?= pb_e(pb_setting('blog_title')) ?></a> <span aria-hidden="true">/</span> Categories</nav>
+  <header class="pb-list-head"><h1>Categories</h1>
+    <p class="pb-lead">Browse <?= pb_e(pb_setting('blog_title')) ?> by topic.</p></header>
+<?php if ($rows): ?>
+  <ul class="pb-cat-index">
+<?php foreach ($rows as $c): ?>
+    <li><a class="pb-cat-card" href="<?= pb_e(pb_url('category', $c['slug'])) ?>"><strong><?= pb_e($c['name']) ?></strong>
+      <span class="pb-cat-count"><?= (int) $c['n'] ?> post<?= (int) $c['n'] === 1 ? '' : 's' ?> · latest <?= pb_e(pb_format_date($c['latest'])) ?></span>
+<?php if ($c['description'] !== ''): ?>      <span class="pb-cat-desc"><?= pb_e($c['description']) ?></span><?php endif; ?></a></li>
+<?php endforeach; ?>
+  </ul>
+<?php else: ?>
+  <div class="pb-empty"><p>No categories yet.</p><p><a class="pb-btn" href="<?= pb_e(pb_url('posts')) ?>">Browse all posts</a></p></div>
+<?php endif; ?>
+  <p class="pb-back"><a href="<?= pb_e(pb_url('posts')) ?>">&larr; All posts</a></p>
+</div>
+<?php
+    $content = ob_get_clean();
+    $items = [];
+    foreach ($rows as $i => $c) $items[] = ['@type' => 'ListItem', 'position' => $i + 1, 'name' => $c['name'], 'url' => pb_abs_url(pb_url('category', $c['slug']))];
+    pb_render_page([
+        'title' => 'Categories | ' . pb_setting('blog_title'),
+        'description' => 'All topics on ' . pb_setting('blog_title') . ($rows ? ': ' . implode(', ', array_column($rows, 'name')) . '.' : '.'),
+        'canonical' => $url, 'noindex' => !$rows,
+        'jsonld' => $rows ? ['@context' => 'https://schema.org', '@type' => 'CollectionPage', 'name' => 'Categories', 'url' => $url,
+                             'mainEntity' => ['@type' => 'ItemList', 'itemListElement' => $items]] : null,
     ], $content);
     exit;
 }
