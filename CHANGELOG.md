@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.31.3 — 2026-11-11
+
+- **Demo sites: the demo accounts are now `@jotkite.demo`** (they were `@postbase.demo`, left over from the rename, and visible on the demo's Users screen).
+  - Existing demos are fixed by themselves. The old addresses are renamed when the database opens, including after every hourly reset, since saved starting points still contain them. One-click sign-in and the demo-account locks keep working throughout.
+  - The demo screens and README now list all four roles (Admin, Editor, Author, Contributor).
+
 ## 0.31.2 — 2026-10-28
 
 - **/blog/category/ is a real page now.** Opening the category address without a category name (for example by trimming a category URL) showed "Post not found". It now lists every category that has published posts, with its description, number of posts and latest date, each linking to its own page.

@@ -1203,7 +1203,7 @@ if ($view === 'edit') {
 <div class="pb-two-col">
   <div class="pb-card">
     <h3 class="pb-h3">Demo mode is on</h3>
-    <p class="pb-small">Set in <code>config.php</code>. Visitors sign in with one click as Admin, Editor or Contributor. The database and uploads go back to the saved starting point every <strong><?= pb_demo_minutes() ?> minutes</strong>.</p>
+    <p class="pb-small">Set in <code>config.php</code>. Visitors sign in with one click as Admin, Editor, Author or Contributor. The database and uploads go back to the saved starting point every <strong><?= pb_demo_minutes() ?> minutes</strong>.</p>
     <p class="pb-small pb-muted">Last reset: <?= pb_demo_last_reset() ? pb_e(pb_format_date(gmdate('Y-m-d H:i:s', pb_demo_last_reset()), 'j M Y, g:i a')) : '—' ?> · next in <?= pb_demo_minutes_left() ?> min
       · starting point saved <?= is_file($snap) ? pb_e(pb_format_date(gmdate('Y-m-d H:i:s', filemtime($snap)), 'j M Y, g:i a')) : '—' ?></p>
     <p class="pb-small pb-muted">Locked for visitors: Settings → Code, robots.txt, and the demo accounts' passwords, emails and roles. Public pages are marked <code>noindex</code> and show a "Try the admin" bar.</p>

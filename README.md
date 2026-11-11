@@ -139,7 +139,7 @@ return ['demo' => true, 'demo_reset_minutes' => 60, 'demo_key' => 'a-long-secret
 ```
 
 - **First visit:** JotKite creates demo accounts and sample posts.
-- **Sign-in:** visitors enter with one click as Admin, Editor or Contributor.
+- **Sign-in:** visitors enter with one click as Admin, Editor, Author or Contributor.
 - **Reset:** every 60 minutes the database and images go back to the starting point.
 - **Locked for visitors:** custom header/footer code, robots.txt, and the demo accounts' passwords, emails and roles. Public pages are `noindex`.
 - **Your own starting point:** arrange the content you want, then enter `demo_key` in **Settings → Demo** and click *Save current content as the starting point*.

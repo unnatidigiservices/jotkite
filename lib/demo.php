@@ -8,7 +8,7 @@
  *
  *   return ['demo' => true, 'demo_reset_minutes' => 60, 'demo_key' => 'a-long-secret'];
  *
- * - Visitors sign in with one click as Admin, Editor or Contributor.
+ * - Visitors sign in with one click as Admin, Editor, Author or Contributor.
  * - Every demo_reset_minutes, the database and uploads/ are restored from a
  *   snapshot in data/demo/. The first snapshot is made automatically, with
  *   sample content.
@@ -21,11 +21,15 @@
 if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 
 define('PB_DEMO_USERS', [
-    'admin'       => ['demo-admin@postbase.demo', 'Demo Admin'],
-    'editor'      => ['demo-editor@postbase.demo', 'Demo Editor'],
-    'author'      => ['demo-author@postbase.demo', 'Demo Author'],
-    'contributor' => ['demo-writer@postbase.demo', 'Demo Contributor'],
+    'admin'       => ['demo-admin@jotkite.demo', 'Demo Admin'],
+    'editor'      => ['demo-editor@jotkite.demo', 'Demo Editor'],
+    'author'      => ['demo-author@jotkite.demo', 'Demo Author'],
+    'contributor' => ['demo-writer@jotkite.demo', 'Demo Contributor'],
 ]);
+// Before 0.31.3 the demo accounts were @postbase.demo. Demo sites still have those in
+// their database and in every snapshot they reset to, so they're renamed when the
+// database opens (pb_demo_rename_legacy) and still recognised as demo accounts.
+define('PB_DEMO_LEGACY_DOMAIN', '@postbase.demo');
 
 function pb_demo_on() {
     return (bool) pb_config('demo');
@@ -52,8 +56,26 @@ function pb_demo_locked() {
     return pb_demo_on() && !pb_demo_owner();
 }
 function pb_demo_is_demo_user($user) {
-    foreach (PB_DEMO_USERS as [$email]) if ($user && strcasecmp($user['email'], $email) === 0) return true;
+    if (!$user) return false;
+    foreach (PB_DEMO_USERS as [$email]) {
+        $legacy = str_replace('@jotkite.demo', PB_DEMO_LEGACY_DOMAIN, $email);
+        if (strcasecmp($user['email'], $email) === 0 || strcasecmp($user['email'], $legacy) === 0) return true;
+    }
     return false;
+}
+// Old @postbase.demo accounts → @jotkite.demo. Runs each time a demo database opens,
+// because each reset brings the old snapshot back; it's one quick query when nothing is left.
+function pb_demo_rename_legacy(PDO $pdo) {
+    $st = $pdo->prepare('SELECT COUNT(*) FROM users WHERE email LIKE ?');
+    $st->execute(['%' . PB_DEMO_LEGACY_DOMAIN]);
+    if (!(int) $st->fetchColumn()) return;
+    foreach (PB_DEMO_USERS as [$email]) {
+        $legacy = str_replace('@jotkite.demo', PB_DEMO_LEGACY_DOMAIN, $email);
+        $taken = $pdo->prepare('SELECT 1 FROM users WHERE email = ?');
+        $taken->execute([$email]);
+        if ($taken->fetchColumn()) continue; // both exist (e.g. created at a login): leave it, both count as demo accounts
+        $pdo->prepare('UPDATE users SET email = ? WHERE email = ?')->execute([$email, $legacy]);
+    }
 }
 
 // Restores the snapshot when it is time. Runs before the database is opened.
@@ -156,7 +178,7 @@ function pb_demo_sample_content(array $ids) {
     $ago = function ($h) { return gmdate('Y-m-d H:i:s', time() - $h * 3600); };
     $posts = [
         ['welcome-to-the-demo', 'Welcome to the JotKite demo', 'published', $ids['admin'], $ago(2), 1, 'post',
-         '<p>This is a live JotKite blog. <strong>Sign in to the admin</strong> with one click, as an Admin, Editor or Contributor, and try anything: write, paste from Word or Google Docs, upload photos from your phone, publish, or break things.</p>'
+         '<p>This is a live JotKite blog. <strong>Sign in to the admin</strong> with one click, as an Admin, Editor, Author or Contributor, and try anything: write, paste from Word or Google Docs, upload photos from your phone, publish, or break things.</p>'
          . '<h2>Everything resets</h2><p>Every ' . pb_demo_minutes() . ' minutes the demo goes back to this starting point, so nothing you do here is permanent.</p>'
          . '<ul><li>Paste a Google Doc and watch the formatting survive.</li><li>Type <code>## </code> for a heading, or <code>- </code> for a list.</li><li>Open the admin on your phone and add it to your home screen.</li></ul>'],
         ['new-stock-arrived', 'New stock arrived', 'published', $ids['editor'], $ago(26), 0, 'post',

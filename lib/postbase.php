@@ -10,7 +10,7 @@
  */
 if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 
-define('PB_VERSION', '0.31.2');
+define('PB_VERSION', '0.31.3');
 define('PB_HOMEPAGE', 'https://jotkite.com');                             // project info, docs and support
 define('PB_REPO_URL', 'https://github.com/unnatidigiservices/jotkite');    // source code and issues
 define('PB_SCHEMA_VERSION', 8);
@@ -283,6 +283,7 @@ function pb_db() {
         // WAL is faster, but a demo swaps the whole file on reset: a single file is safer there.
         try { $pdo->exec('PRAGMA journal_mode = ' . ($demo ? 'DELETE' : 'WAL')); } catch (Exception $e) { /* some network filesystems refuse WAL; rollback journal is fine */ }
         pb_migrate($pdo);
+        if ($demo) pb_demo_rename_legacy($pdo); // lib/demo.php: @postbase.demo → @jotkite.demo (snapshots bring the old ones back)
         if ($demo) pb_demo_bootstrap();
     } catch (PDOException $e) {
         pb_fatal('Database error: ' . $e->getMessage());
