@@ -354,7 +354,9 @@ if ($isPost) {
     }
     if ($do === 'demo_unlock' && pb_demo_on() && pb_can($user, 'settings.manage')) {
         $key = (string) pb_config('demo_key');
-        if ($key !== '' && hash_equals($key, (string) ($_POST['key'] ?? ''))) {
+        // Spaces copied around the key (from config.php or a note) don't count.
+        $key = trim($key);
+        if ($key !== '' && hash_equals($key, trim((string) ($_POST['key'] ?? '')))) {
             $_SESSION['pb_demo_owner'] = true;
             pb_flash('Owner tools unlocked for this session.');
         } else {
@@ -1212,7 +1214,7 @@ if ($view === 'edit') {
     <h3 class="pb-h3">Owner tools</h3>
     <?php if (!pb_demo_owner()): ?>
       <form method="post"><?= pb_csrf_field() ?><input type="hidden" name="do" value="demo_unlock">
-        <label>Demo key <span class="pb-small pb-muted">(<code>demo_key</code> in config.php)</span><input type="password" name="key" autocomplete="off" required></label>
+        <label>Demo key <span class="pb-small pb-muted">(<code>demo_key</code> in config.php)</span><input type="password" name="key" autocomplete="one-time-code" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other" required></label>
         <button class="pb-btn pb-btn-primary">Unlock</button></form>
     <?php else: ?>
       <p class="pb-small">Unlocked for this session. Arrange the posts, pages, images and settings the way every visitor should find them, then save.</p>

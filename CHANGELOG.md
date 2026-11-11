@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.31.4 — 2026-11-11
+
+- **Demo sites: unlocking owner tools is more forgiving.** Spaces copied before or after the demo key no longer make it "wrong", and the key box tells password managers (LastPass, 1Password, Bitwarden) not to fill in your login password there.
+
 ## 0.31.3 — 2026-11-11
 
 - **Demo sites: the demo accounts are now `@jotkite.demo`** (they were `@postbase.demo`, left over from the rename, and visible on the demo's Users screen).
