@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.31.5 — 2026-11-12
+
+- **GeoRank sites: the site header and footer links work on every blog page.** The footer is GeoRank's own, written for pages at the site root ("../about.html", "../blog/category/news-update/"). On a blog page one or more folders deep those resolved to addresses that don't exist (for example /blog/category/about.html, /blog/author/site-admin/page/about.html), so crawlers collected dozens of 404s.
+  - JotKite now rewrites every relative link and image address in the embedded header and footer (and the homepage's stylesheet and script tags) to a root-based address, so it is right at any depth. Absolute links, `mailto:`, `tel:`, `#` and `?` links are left alone. GeoRank's own files are not changed.
+- **Doubled addresses are 404.** /blog/blog/category/portfolio/ and /blog/blog/my-post/ answered with a copy of the real page. Only the real address answers now; the doubled one gives a "not found" page (404).
+  - In Search Console, mark the old 404s as fixed after the update; they drop out as Google recrawls.
 ## 0.31.4 — 2026-11-11
 
 - **Demo sites: unlocking owner tools is more forgiving.** Spaces copied before or after the demo key no longer make it "wrong", and the key box tells password managers (LastPass, 1Password, Bitwarden) not to fill in your login password there.

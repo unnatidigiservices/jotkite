@@ -24,9 +24,7 @@ function pb_georank_page_assets() {
     $siteBase = pb_site_base_path();
     $fix = function ($tag) use ($siteBase) {
         // Relative asset paths on the homepage are relative to the site root, not /blog/.
-        return preg_replace_callback('~\b(href|src)=(["\'])(?!https?:|//|/|data:|#)([^"\']+)\2~i', function ($m) use ($siteBase) {
-            return $m[1] . '=' . $m[2] . $siteBase . '/' . $m[3] . $m[2];
-        }, $tag);
+        return pb_georank_root_urls($tag, $siteBase);
     };
     if (preg_match('~<head[^>]*>(.*?)</head>~is', $raw, $h)) {
         preg_match_all('~<link\b[^>]*\brel=(["\'])(stylesheet|preload|preconnect|modulepreload)\1[^>]*>~i', $h[1], $links);
@@ -37,6 +35,35 @@ function pb_georank_page_assets() {
         foreach ($scripts[0] as $tag) $out['foot'] .= $fix($tag) . "\n";
     }
     return $out;
+}
+
+/**
+ * GeoRank's header.html / footer.html are written for pages at the site root
+ * ("../about.html", "../blog/category/news-update/", "blog/", "about.html"). Embedded
+ * in a blog page that is one or more folders deep, those resolve to non-existent
+ * addresses (/blog/category/about.html…). Rewrite every relative href / src / action /
+ * poster to a root-relative address resolved against the site root, so the output is
+ * right at any depth. Untouched: absolute (/…), protocol-relative (//…), anything
+ * with a scheme (https:, mailto:, tel:, data:, javascript:…), "#frag" and "?query".
+ * Like a browser at the root, leading "../" can't climb above the root.
+ */
+function pb_georank_root_urls($html, $siteBase = null) {
+    if ($siteBase === null) $siteBase = pb_site_base_path();
+    return preg_replace_callback('~(\s)(href|src|action|poster)(\s*=\s*)(["\'])([^"\']*)\4~i', function ($m) use ($siteBase) {
+        $u = trim($m[5]);
+        if ($u === '' || $u[0] === '#' || $u[0] === '?' || $u[0] === '/' || preg_match('~^[a-z][a-z0-9+.\-]*:~i', $u)) return $m[0];
+        $rest = '';
+        if (preg_match('~^([^?#]*)([?#].*)$~s', $u, $x)) { $u = $x[1]; $rest = $x[2]; }
+        $out = [];
+        foreach (explode('/', $u) as $seg) {
+            if ($seg === '' || $seg === '.') continue;
+            if ($seg === '..') { array_pop($out); continue; }
+            $out[] = $seg;
+        }
+        $path = implode('/', $out);
+        if ($path !== '' && substr($u, -1) === '/') $path .= '/';
+        return $m[1] . $m[2] . $m[3] . $m[4] . $siteBase . '/' . $path . $rest . $m[4];
+    }, (string) $html);
 }
 
 // Inline CSS for Settings → Design. Only overrides what the admin actually
@@ -162,10 +189,14 @@ function pb_render_page(array $meta, $content) {
         echo "\n" . $assets['head'];
         echo pb_css_tag(PB_ROOT . '/assets/blog.css', $blogCss) . $tail;
         echo "</head>\n<body class=\"pb-page pb-georank\">\n";
+        ob_start();
         include PB_SITE_DIR . '/header.html';
+        echo pb_georank_root_urls((string) ob_get_clean());
         $subnav = pb_setting('nav_show_georank') === '1' ? '<div class="pb-subnav-bar"><div class="pb-wrap">' . pb_nav_html('pb-subnav') . "</div></div>\n" : '';
         echo "\n<main id=\"main\" class=\"pb-main\">\n" . $subnav . $content . "\n</main>\n";
+        ob_start();
         include PB_SITE_DIR . '/footer.html';
+        echo pb_georank_root_urls((string) ob_get_clean());
         echo "\n" . $assets['foot'] . $bodyEnd . "</body>\n</html>\n";
         return;
     }

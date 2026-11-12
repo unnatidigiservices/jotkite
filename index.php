@@ -47,6 +47,15 @@ if ($route === '' && !isset($_GET['p']) && !isset($_GET['c']) && !isset($_GET['f
 $route = trim($route, '/');
 $basePrefix = trim(PB_BASE_PATH, '/');
 if ($basePrefix !== '' && strpos($route, $basePrefix . '/') === 0) $route = substr($route, strlen($basePrefix) + 1);
+// A doubled prefix (/blog/blog/…) is not a page. The line above exists for setups whose
+// rewrite rule passes the whole path as "route"; it must not make /blog/blog/x answer
+// as /blog/x, a second copy of every page. Judged on the address actually requested.
+$pbDoubled = false;
+if ($basePrefix !== '' && $route !== '' && !isset($_GET['p']) && !isset($_GET['c']) && !isset($_GET['feed'])) {
+    $reqPath = rawurldecode((string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH));
+    if (PB_BASE_PATH !== '' && strpos($reqPath, PB_BASE_PATH . '/') === 0) $reqPath = substr($reqPath, strlen(PB_BASE_PATH));
+    $pbDoubled = (bool) preg_match('~^/' . preg_quote($basePrefix, '~') . '(/|$)~', $reqPath);
+}
 $view = 'home';
 $slug = '';
 $page = max(1, (int) ($_GET['page'] ?? 1));
@@ -100,6 +109,8 @@ if (isset($_GET['feed'])) {
         $view = 'notfound';
     }
 }
+
+if ($pbDoubled) $view = 'notfound';
 
 // Homepage: a static Page (Settings → General) or the latest posts.
 $front = pb_front_page();
