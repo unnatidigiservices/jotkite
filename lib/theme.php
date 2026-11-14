@@ -97,7 +97,9 @@ function pb_nav_html($class) {
     $h = '<nav class="' . pb_e($class) . '" aria-label="Blog navigation">';
     foreach ($items as $it) {
         $url = (string) $it['url'];
-        $current = $url === $here || ($url === PB_BASE_PATH . '/' && strpos($here, PB_BASE_PATH . '/') === 0);
+        // The blog's home link stays lit on its posts (/blog/my-post/), but a site installed at the
+        // domain root has every page under "/", so there Home is current only on the homepage.
+        $current = $url === $here || (PB_BASE_PATH !== '' && $url === PB_BASE_PATH . '/' && strpos($here, PB_BASE_PATH . '/') === 0);
         $h .= '<a href="' . pb_e($url) . '"' . ($current ? ' aria-current="page"' : '')
             . (!empty($it['new_tab']) ? ' target="_blank" rel="noopener"' : '') . '>' . pb_e($it['label']) . '</a>';
     }

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.32.1 — 2026-11-14
+
+- **Menu: the right page is highlighted on sites installed at the domain root.** "Home" stayed highlighted on every page (About, Contact…), because every address starts with "/". It is now highlighted only on the homepage. Blogs in a folder (/blog/) work as before.
+- **JotKite School 1.0.1:**
+  - A wide Hero photo (for example a 4:1 campus panorama) now fills the whole hero. It stopped halfway, with plain colour below.
+  - On laptop screens (961–1180px wide) the school theme keeps the menu on one line: a slightly smaller name, the tagline hidden, and tighter menu spacing.
+  - **Your own Google map.** School → School details → *Google Maps embed*: paste the code from Google Maps (the school's place → Share → Embed a map → Copy HTML). Contact blocks then show the school's own pin and name instead of a map built from the coordinates. Only Google Maps embed addresses are kept.
+  - If you added the temporary fixes for these two to Settings → Code, delete them after updating.
+
 ## 0.32.0 — 2026-11-14
 
 - **JotKite School** (premium, licensed per school). A school website kit, switched on in Settings → Addons:
