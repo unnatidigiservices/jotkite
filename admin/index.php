@@ -397,6 +397,7 @@ if ($isPost) {
         pb_settings_save([
             'code_head' => substr(str_replace("\r\n", "\n", (string) ($_POST['code_head'] ?? '')), 0, 20000),
             'code_footer' => substr(str_replace("\r\n", "\n", (string) ($_POST['code_footer'] ?? '')), 0, 20000),
+            'code_css' => substr(str_replace("\r\n", "\n", (string) ($_POST['code_css'] ?? '')), 0, 50000),
         ]);
         pb_flash('Code saved. It is now on every public page.');
         pb_redirect('view=settings&tab=code');
@@ -1337,12 +1338,15 @@ if ($view === 'edit') {
       <textarea name="code_head" rows="9" class="pb-code" spellcheck="false" placeholder="<meta name=&quot;google-site-verification&quot; content=&quot;…&quot;>"><?= pb_e($s('code_head')) ?></textarea></label>
     <label>Footer code <span class="pb-small pb-muted">— added just before <code>&lt;/body&gt;</code> on every public page</span>
       <textarea name="code_footer" rows="9" class="pb-code" spellcheck="false" placeholder="<script>…analytics or chat widget…</script>"><?= pb_e($s('code_footer')) ?></textarea></label>
+    <label>Custom CSS <span class="pb-small pb-muted">— plain CSS, no <code>&lt;style&gt;</code> tags; loads after the theme, so your rules win</span>
+      <textarea name="code_css" rows="12" class="pb-code" spellcheck="false" placeholder=".jks-hero h1 { letter-spacing: .5px; }"><?= pb_e($s('code_css')) ?></textarea></label>
     <button class="pb-btn pb-btn-primary">Save code</button>
   </form>
   <div class="pb-card">
     <h3 class="pb-h3">What goes here</h3>
     <p class="pb-small"><strong>Header:</strong> site-verification tags (Google Search Console, Bing, Pinterest, Facebook), Google Analytics / Tag Manager, Microsoft Clarity, fonts or pixels that must load early.</p>
-    <p class="pb-small"><strong>Footer:</strong> chat widgets, heatmaps and scripts that can load after the page.</p>
+    <p class="pb-small"><strong>Footer:</strong> chat widgets, heatmaps and your own <code>&lt;script&gt;</code>s. They run after the page and the theme have loaded, so they can find any element on it.</p>
+    <p class="pb-small"><strong>Custom CSS:</strong> colour, spacing or layout tweaks for any theme (including the JotKite School theme). It survives updates and theme changes; files you edit inside the theme folder don't.</p>
     <p class="pb-small pb-muted">Code is printed exactly as entered, so only paste code from services you trust. Only Admins can see or change this page. It never runs in the admin area, so a broken snippet can't lock you out.</p>
     <?php if ($isGr): ?><div class="pb-note pb-note-info pb-small">This is a GeoRank site: blog pages already include the code from <strong>GeoRank → Site Settings</strong> (meta-global). Add a snippet here only if it should run <em>on the blog alone</em>, or it will load twice.</div><?php endif; ?>
   </div>

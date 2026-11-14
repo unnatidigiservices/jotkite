@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.32.3 — 2026-11-14
+
+- **Custom CSS** in Settings → Code. Paste plain CSS (no `<style>` tags) to adjust colours, spacing or layout. It loads after the theme's own styles, so your rules win, and it works with every theme, including the JotKite School theme. It is kept through updates and theme changes, unlike edits made inside a theme's files.
+- **Footer code** is where your own scripts go. It runs on every public page, just before `</body>`, after the theme's header and footer have loaded. It already worked with the School theme; the help text now says so.
+- Neither runs in the admin area, so a mistake there can't lock you out.
+
+## 0.32.2 — 2026-11-14
+
+- **JotKite School 1.0.2: Facilities show two cards per row on phones** instead of one long column, with slightly smaller text so names like "Laboratories" still fit. Tablets and computers are unchanged.
+
 ## 0.32.1 — 2026-11-14
 
 - **Menu: the right page is highlighted on sites installed at the domain root.** "Home" stayed highlighted on every page (About, Contact…), because every address starts with "/". It is now highlighted only on the homepage. Blogs in a folder (/blog/) work as before.

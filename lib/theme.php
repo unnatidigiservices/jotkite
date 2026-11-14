@@ -155,6 +155,10 @@ function pb_render_page(array $meta, $content) {
     $codeFooter = trim((string) pb_setting('code_footer'));
     if ($codeHead !== '') $tail .= "<!-- JotKite: custom head code -->\n" . $codeHead . "\n";
     if ($codeFooter !== '') $bodyEnd .= "<!-- JotKite: custom footer code -->\n" . $codeFooter . "\n";
+    // Custom CSS goes last in <head>, after theme.css and addon styles, so equal selectors win.
+    // "</style" can't end the tag early: in CSS "<\/style" means the same text.
+    $codeCss = trim((string) pb_setting('code_css'));
+    if ($codeCss !== '') $tail .= '<style id="jk-custom-css">' . "\n" . str_ireplace('</style', '<\/style', $codeCss) . "\n</style>\n";
     // The photo viewer script, only on pages that have a gallery.
     if (strpos($content, 'class="pb-gallery"') !== false) {
         $bodyEnd .= '<script src="' . pb_e(PB_BASE_PATH . '/assets/gallery.js?v=' . PB_VERSION) . '" defer></script>' . "\n";

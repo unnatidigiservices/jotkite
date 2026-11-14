@@ -10,7 +10,7 @@
  */
 if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 
-define('PB_VERSION', '0.32.1');
+define('PB_VERSION', '0.32.3');
 define('PB_HOMEPAGE', 'https://jotkite.com');                             // project info, docs and support
 define('PB_REPO_URL', 'https://github.com/unnatidigiservices/jotkite');    // source code and issues
 define('PB_SCHEMA_VERSION', 8);
@@ -571,6 +571,7 @@ function pb_settings_defaults() {
         // Settings → Code: raw HTML/JS added to every public page (Admin only).
         'code_head'           => '',
         'code_footer'         => '',
+        'code_css'            => '', // plain CSS, printed last in <head> so it wins over any theme
         // Version bookkeeping: the version that last ran, and an upgrade notice
         // ({from, to, at} JSON) that Admins see until they dismiss it.
         'installed_version'   => '',
