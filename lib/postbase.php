@@ -10,7 +10,7 @@
  */
 if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 
-define('PB_VERSION', '0.31.5');
+define('PB_VERSION', '0.32.0');
 define('PB_HOMEPAGE', 'https://jotkite.com');                             // project info, docs and support
 define('PB_REPO_URL', 'https://github.com/unnatidigiservices/jotkite');    // source code and issues
 define('PB_SCHEMA_VERSION', 8);
@@ -1378,6 +1378,15 @@ function pb_rename_element(DOMDocument $doc, DOMElement $el, $newTag) {
 // UPLOADS — images only, re-validated from the file bytes, never trusted by
 // extension. uploads/.htaccess also stops any script from running there.
 // ----------------------------------------------------------------------------
+// Remove photo details (EXIF) on upload? Settings → General, unless an addon
+// insists: pb_add_filter('pb_strip_photo_metadata', fn () => true) (e.g. a school site).
+function pb_photo_strip() {
+    return (bool) pb_apply_filters('pb_strip_photo_metadata', pb_setting('photo_metadata') === 'strip');
+}
+// True when an addon forces removal although the setting says keep (the setting is then shown locked).
+function pb_photo_strip_forced() {
+    return pb_setting('photo_metadata') !== 'strip' && pb_photo_strip();
+}
 function pb_handle_upload($file, $keepFormat = false) {
     if (!is_array($file) || !isset($file['error'])) return ['error' => 'No file received.'];
     if ($file['error'] !== UPLOAD_ERR_OK) {
@@ -1416,8 +1425,8 @@ function pb_store_image($tmpPath, $origName, $isUpload, $keepFormat = false) {
     [$w, $h] = [$info[0], $info[1]];
     $max = (int) pb_config('max_image_px');
     // Photo metadata (EXIF: location, camera, date) is kept unless Settings →
-    // General says to remove it. See lib/media.php.
-    $strip = pb_setting('photo_metadata') === 'strip';
+    // General (or an addon) says to remove it. See lib/media.php.
+    $strip = pb_photo_strip();
     $jpeg = $ext === 'jpg' ? (string) file_get_contents($tmpPath) : '';
     $exif = $jpeg !== '' ? pb_jpeg_exif_segment($jpeg) : '';
     $orient = $exif !== '' ? (int) (pb_exif_parse($exif)['orientation'] ?? 1) : 1;

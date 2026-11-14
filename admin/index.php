@@ -1495,11 +1495,17 @@ if ($view === 'edit') {
     <span class="pb-small pb-muted"><?= $pubPages ? 'With a page as the homepage, the post list moves to <code>' . pb_e(pb_url('posts') === pb_url('home') ? PB_BASE_PATH . '/posts/' : pb_url('posts')) . '</code> and the page\'s own address redirects to the homepage.' : 'Publish a Page (Pages → New page) to use it as the homepage.' ?></span></label>
 
     <h3 class="pb-h3">Photos</h3>
+    <?php if (pb_photo_strip_forced()): ?>
+    <input type="hidden" name="photo_metadata" value="<?= pb_e($s('photo_metadata')) ?>">
+    <p>Photo details (location, camera, date taken): <strong>always removed when uploading</strong>.
+    <span class="pb-small pb-muted">An active addon requires this (for example JotKite School, because photos may show children).</span></p>
+    <?php else: ?>
     <label>Photo details (location, camera, date taken)<select name="photo_metadata">
       <option value="keep"<?= $s('photo_metadata') !== 'strip' ? ' selected' : '' ?>>Keep them in the photo (recommended)</option>
       <option value="strip"<?= $s('photo_metadata') === 'strip' ? ' selected' : '' ?>>Remove them when uploading</option>
     </select>
     <span class="pb-small pb-muted">Real photos with their location and date are a genuine signal for search engines, especially for local businesses. Remove them only if photos are taken somewhere private, such as your home. Applies to new uploads.</span></label>
+    <?php endif; ?>
 
     <h3 class="pb-h3"><?= $showGr ? 'Layout &amp; URLs' : 'URLs' ?></h3>
     <?php if ($showGr): ?>
@@ -1877,7 +1883,7 @@ foreach (pb_admin_pages() as $apKey => $ap) array_splice($nav, count($nav) - 1, 
     <footer class="pb-admin-foot"><span class="pb-mobile-only"><?php if ($georankUrl): ?><a href="<?= pb_e($georankUrl) ?>">GeoRank dashboard</a> · <?php endif; ?></span>JotKite <?= pb_e(PB_VERSION) ?> · <a href="<?= PB_HOMEPAGE ?>" target="_blank" rel="noopener">Help &amp; support</a> · <a href="<?= PB_REPO_URL ?>" target="_blank" rel="noopener">GitHub</a></footer>
   </div>
 </div>
-<script>window.PB = <?= json_encode(['csrf' => pb_csrf_token(), 'endpoint' => pb_admin_url(), 'maxMb' => pb_config('max_upload_mb'), 'maxPx' => (int) pb_config('max_image_px'), 'keepMeta' => pb_setting('photo_metadata') !== 'strip','adminUrl' => pb_admin_url()]) ?>;</script>
+<script>window.PB = <?= json_encode(['csrf' => pb_csrf_token(), 'endpoint' => pb_admin_url(), 'maxMb' => pb_config('max_upload_mb'), 'maxPx' => (int) pb_config('max_image_px'), 'keepMeta' => !pb_photo_strip(),'adminUrl' => pb_admin_url()]) ?>;</script>
 <script src="<?= pb_e(PB_BASE_PATH) ?>/assets/paste.js?v=<?= pb_e(PB_VERSION) ?>"></script>
 <script src="<?= pb_e(PB_BASE_PATH) ?>/assets/admin.js?v=<?= pb_e(PB_VERSION) ?>"></script>
 <?php // Addons: their own admin styles/scripts (after admin.js, so window.PBEditor exists on the editor). ?>

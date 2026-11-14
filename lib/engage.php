@@ -135,6 +135,10 @@ function pb_can_moderate($user, $post = null) {
 function pb_comment_add($post, $user, array $in) {
     if (!$post || !pb_comments_open($post)) return ['error' => 'Comments are closed on this post.'];
     $removed = 0;
+    // An addon may vouch for a visitor it signed in itself (e.g. a verified alumnus):
+    // ['name' => display name, 'live' => true to skip the approval queue]. Their text is still plain text.
+    $vouched = $user ? null : pb_apply_filters('pb_comment_visitor', null, $post);
+    if (!is_array($vouched) || trim((string) ($vouched['name'] ?? '')) === '') $vouched = null;
     if ($user) {
         $body = trim(str_replace(["\r\n", "\r"], "\n", (string) ($in['body'] ?? '')));
         $body = preg_replace('/[\x00-\x08\x0B-\x1F\x7F]/', '', $body);
@@ -144,8 +148,13 @@ function pb_comment_add($post, $user, array $in) {
         if (trim((string) ($in['website'] ?? '')) !== '') return ['error' => 'Your comment could not be posted.']; // honeypot: only bots fill it
         $err = pb_comment_form_token_check($in['t'] ?? '', $post['id']);
         if ($err) return ['error' => $err];
-        $err = pb_comment_name_check($in['name'] ?? '', $name);
-        if ($err) return ['error' => $err];
+        if ($vouched) {
+            $name = trim(preg_replace('/\s+/u', ' ', (string) $vouched['name']));
+            $name = function_exists('mb_substr') ? mb_substr($name, 0, 60) : substr($name, 0, 60);
+        } else {
+            $err = pb_comment_name_check($in['name'] ?? '', $name);
+            if ($err) return ['error' => $err];
+        }
         $body = pb_comment_clean($in['body'] ?? '', $removed);
     }
     if ($body === '') return ['error' => $removed ? 'Links, email addresses and code aren\'t allowed, and nothing else was left. Write your comment in words.' : 'Write a comment first.'];
@@ -166,7 +175,7 @@ function pb_comment_add($post, $user, array $in) {
         $parent = pb_row("SELECT id, parent_id FROM comments WHERE id = ? AND post_id = ? AND status = 'approved'", [$parentId, $post['id']]);
         $parentId = $parent ? (int) ($parent['parent_id'] ?: $parent['id']) : 0;
     }
-    $live = $user || pb_setting('comments_moderation') !== 'public';
+    $live = $user || !empty($vouched['live']) || pb_setting('comments_moderation') !== 'public';
     pb_q('INSERT INTO comments (post_id, parent_id, user_id, name, body, status, token, ip_hash, created_at, approved_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [(int) $post['id'], $parentId ?: null, $user ? (int) $user['id'] : null, $name, $body, $live ? 'approved' : 'pending',

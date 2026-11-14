@@ -243,7 +243,7 @@ if ($view === 'post') {
     <a href="<?= pb_e(pb_url('admin', 'view=edit&id=' . (int) $post['id'])) ?>">Back to editor</a></div>
 <?php endif; ?>
   <article class="pb-article pb-static">
-    <header class="pb-article-head"><h1><?= pb_e($post['title']) ?></h1></header>
+<?= pb_apply_filters('pb_page_header', '    <header class="pb-article-head"><h1>' . pb_e($post['title']) . "</h1></header>\n", $post) /* addons: '' when the page's first block carries the heading */ ?>
 <?php if ($img !== ''): ?>
     <figure class="pb-cover"><img src="<?= pb_e($img) ?>" alt="<?= pb_e($post['cover_alt'] !== '' ? $post['cover_alt'] : $post['title']) ?>"<?= pb_img_dims($img) ?> fetchpriority="high"></figure>
 <?php endif; ?>
@@ -257,7 +257,8 @@ if ($view === 'post') {
             if ($preview) header('Cache-Control: no-store');
             $jsonld = ['@context' => 'https://schema.org', '@type' => 'WebPage', 'name' => $post['title'], 'description' => $desc, 'url' => $url];
             pb_render_page(['title' => $pageTitle, 'description' => $desc, 'canonical' => $url, 'image' => $shareImg,
-                'jsonld' => $preview ? null : $jsonld, 'noindex' => $preview], $content);
+                'jsonld' => $preview ? null : $jsonld, 'noindex' => $preview,
+                'post' => $post, 'front' => !empty($isFront)], $content); // post/front: context for pb_page_meta filters
             exit;
         }
 
@@ -327,6 +328,7 @@ if ($view === 'post') {
             'title' => $pageTitle,
             'description' => $desc, 'canonical' => $url, 'image' => $shareImg, 'type' => 'article',
             'jsonld' => $preview ? null : $jsonld, 'noindex' => $preview,
+            'post' => $post, 'front' => false,
         ], $content);
         exit;
     }
@@ -517,4 +519,5 @@ pb_render_page([
     'canonical' => $q === '' ? $canonical : '',
     'noindex' => $q !== '',
     'jsonld' => ['@context' => 'https://schema.org', '@type' => 'Blog', 'name' => pb_setting('blog_title'), 'url' => pb_abs_url(pb_url('posts'))],
+    'front' => !$category && $q === '' && $page === 1 && !pb_front_page(), // the latest posts are the homepage
 ], $content);

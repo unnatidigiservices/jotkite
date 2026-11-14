@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.32.0 — 2026-11-14
+
+- **JotKite School** (premium, licensed per school). A school website kit, switched on in Settings → Addons:
+  - **School details** (admin → School): name, other-language name, logo, address, map, phones, email, office hours, admissions and social links. Google gets them as **School** structured data on the homepage, and every post names the school as its publisher.
+  - **🏫 School blocks** in the editor: Hero, Text and photo, Numbers, Facilities, Our story, Latest news, Notice board, Message (for example from the Principal), Admissions band, Questions and answers, Alumni, and Contact and visit. Build the homepage as a Page from blocks. Blocks fill themselves in each time the page is shown: notices hide after their date, and news and alumni stay current. Questions and answers also become FAQ structured data.
+  - **Alumni community**: former students (18 or older) sign up with their batch, confirm their email, and the school approves them. Each person chooses who sees their profile: everyone, alumni and staff only, or nobody. There's a directory you can search by batch, profile pages, and a Report link. Approved alumni comment under their own name, with an "Alumni" badge, and their comments appear at once. Deleting an account removes the profile, photo and comments. The exact consent text each person agreed to is saved.
+  - **JotKite School theme**: a school header (logo, name, phone, email, Admissions button) and a footer with address, office hours and links, in the school's own two colours.
+  - **Photos on a school site always lose their location and date details** when uploaded, because they may show children. Settings → General shows this as locked.
+- For addon developers: `pb_comment_visitor` (vouch for a visitor your addon signed in), `pb_page_header` (hide a Page's title when your first block carries the heading), `pb_strip_photo_metadata`, and `$meta['post']` / `$meta['front']` in `pb_page_meta`. `window.PBEditor` adds `upload(file)` and `pickImage(onPick)`. See docs/ADDONS.md.
+
 ## 0.31.5 — 2026-11-12
 
 - **GeoRank sites: the site header and footer links work on every blog page.** The footer is GeoRank's own, written for pages at the site root ("../about.html", "../blog/category/news-update/"). On a blog page one or more folders deep those resolved to addresses that don't exist (for example /blog/category/about.html, /blog/author/site-admin/page/about.html), so crawlers collected dozens of 404s.

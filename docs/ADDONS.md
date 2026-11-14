@@ -129,6 +129,11 @@ pb_add_filter('pb_post_content', function ($html, $post) {
 | `pb_comment_saved` | action | `$comment, $post`: a comment was stored (pending or live); read your form fields from `$_POST` (0.28) |
 | `pb_comment_approved` | action | `$comment, $post`: a comment went live for the first time (0.28) |
 | `pb_comment_html` | filter | `$html, $comment, $post`: one comment as shown (the `<li>` is closed by the caller) (0.28) |
+| `pb_comment_visitor` | filter | `null, $post`: vouch for a visitor your addon signed in itself. Return `['name' => …, 'live' => true]` and the comment uses that name and skips the approval queue. The text is still cleaned as plain text, and spam traps and rate limits still apply (0.32) |
+| `pb_page_header` | filter | `$html, $post`: a Page's title header (`<header class="pb-article-head"><h1>…`). Return `''` when your first block carries the page's heading (0.32) |
+| `pb_strip_photo_metadata` | filter | `$strip` (bool, from Settings → General): return `true` to always remove photo details (EXIF: location, camera, date) on upload. Settings then shows the option as locked (0.32) |
+
+**Page context in `pb_page_meta` (0.32).** On posts and Pages, `$meta['post']` is the post row. `$meta['front']` is `true` on the homepage (a homepage Page, or page 1 of the latest posts). Use them to add structured data to one kind of page, for example an organisation's details on the homepage.
 
 The optional third argument to `pb_add_action` / `pb_add_filter` is a priority (lower runs first; default 10). Exceptions inside a hook are caught and logged, and the rest of the page still renders.
 
@@ -181,7 +186,7 @@ pb_add_action('pb_sitemap', function () { echo '<url><loc>' . pb_e(pb_abs_url('/
 | `pb_add_route($prefix, $handler)` | Public pages under `/$prefix/`; posts can no longer take that slug |
 | `pb_add_block_sanitizer($fn)` | Keep a block of your own through the HTML sanitizer (0.31). `$fn(DOMDocument $doc, DOMElement $div)` is called for every `<div>` with a class. Return `true` when it's yours: you then own that element, so rebuild its attributes from values you validated yourself and call `pb_sanitize_children($doc, $div)` for any ordinary content inside. Return `false` otherwise. Unknown divs are still unwrapped. |
 
-**Editor API (0.31).** On the editor page, `window.PBEditor` offers `el` (the editor element), `insertHtml(html)` (at the cursor), `refresh()` (re-check blocks and the empty lines around them), `lineBeside(block, 'above'|'below')` and `markDirty()`. Mark your block's element with `data-pb-block` so the editor keeps a typeable line above and below it. Add `contenteditable="false"` if its inside shouldn't be typed in. Both attributes are removed before saving.
+**Editor API (0.31).** On the editor page, `window.PBEditor` offers `el` (the editor element), `insertHtml(html)` (at the cursor), `refresh()` (re-check blocks and the empty lines around them), `lineBeside(block, 'above'|'below')`, `markDirty()`, and (0.32) `upload(file)` (a Promise of `{url, width, height}`, shrunk and converted like any upload) and `pickImage(onPick)` (the media library; `onPick({url, width, height})`). Mark your block's element with `data-pb-block` so the editor keeps a typeable line above and below it. Add `contenteditable="false"` if its inside shouldn't be typed in. Both attributes are removed before saving.
 
 **GeoRank-only addons (0.31).** `"georank_only": true` in addon.json makes a plugin switch on by itself on an Unnati GeoRank site, and it is never loaded anywhere else (Settings → Addons shows "Available on Unnati GeoRank sites only").
 

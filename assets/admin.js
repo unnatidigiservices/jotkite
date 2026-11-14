@@ -752,6 +752,8 @@
     refresh: () => prepareFigures(), // re-check blocks and the lines around them (doesn't count as a change)
     lineBeside: (block, where) => lineBeside(block, where),
     markDirty: () => { dirty = true; },
+    upload: (file) => upload(file),                          // → Promise of {url, width, height}
+    pickImage: (onPick) => openMediaPicker(onPick, false),   // media library: onPick({url, width, height})
   };
   document.dispatchEvent(new CustomEvent('pb:editor-ready'));
 
