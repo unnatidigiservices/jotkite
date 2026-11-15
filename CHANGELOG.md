@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.33.0 — 2026-11-15
+
+- **Child pages.** In the page editor, *Parent page* puts a page under another page, for example History, Management and Our Mutt under About Us:
+  - **Addresses follow:** the page moves to `/about-us/history/`. Its old address (`/history/`) and any wrong parent in an address redirect there (301), so links already shared keep working. The sitemap lists the new address.
+  - **Breadcrumbs:** a child page shows *Home › About Us › History* above its title, and Google gets them as BreadcrumbList data.
+  - **Sub-page cards:** a parent page lists its sub-pages at the end, as cards with each one's excerpt. *List this page's sub-pages at the end* switches this off.
+  - **Order** sets the order of sub-pages under the same parent (lower first).
+  - Up to 4 levels deep. A page can't be put under itself or one of its own sub-pages. The homepage Page can't be a parent. Deleting a parent moves its sub-pages back to the top level.
+  - Admin → Pages shows each parent with its sub-pages indented underneath.
+  - Pages with no parent don't change.
+- **Dropdown menus.** In Settings → Navigation, tick *Sub-item* on a link to put it in the dropdown of the main link above it. Quick add lists sub-pages under their parent ("About Us › History") and ticks *Sub-item* for you. Up to 12 main links and 40 in all.
+  - On computers, the dropdown opens on hover or keyboard focus. On phones, tap ▾. A main link is highlighted while you're on one of its sub-pages.
+  - Built-in layout and the School theme: a dropdown. M1 theme: sub-items listed under their main link in the menu panel. Footers show main links only.
+- **JotKite School theme 1.1.0:** dropdowns in the school's colours, opening inline in the phone menu. Breadcrumb links use the school colour. **JotKite School 1.0.3:** a child page's breadcrumbs aren't added twice to Google's data.
+- For addon developers: `pb_nav_html($class, $mode)` (`dropdown`, `stacked`, `top`), menu items have `children`, and the new `pb_page_*` helpers. See docs/ADDONS.md.
+
 ## 0.32.3 — 2026-11-14
 
 - **Custom CSS** in Settings → Code. Paste plain CSS (no `<style>` tags) to adjust colours, spacing or layout. It loads after the theme's own styles, so your rules win, and it works with every theme, including the JotKite School theme. It is kept through updates and theme changes, unlike edits made inside a theme's files.

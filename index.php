@@ -105,6 +105,10 @@ if (isset($_GET['feed'])) {
     } elseif (count($parts) === 1) {
         $view = 'post';
         $slug = $parts[0];
+    } elseif (count($parts) <= PB_PAGE_DEPTH && !in_array('', $parts, true)) {
+        $view = 'post'; // a child page: /about-us/history/ is the page "history"; the full path is checked below
+        $slug = end($parts);
+        $pbNested = $parts;
     } else {
         $view = 'notfound';
     }
@@ -203,6 +207,8 @@ if ($view === 'sitemap') {
 // ---- single post -----------------------------------------------------------
 if ($view === 'post') {
     $post = pb_post_by_slug($slug);
+    // /a/b/ only reaches pages; a blog post never answers at a folder-like address.
+    if ($post && !empty($pbNested) && $post['type'] !== 'page') $post = null;
     $preview = false;
     if ($post && !pb_post_is_public($post)) {
         // Unpublished: only people who may see it in the admin get a preview.
@@ -213,7 +219,9 @@ if ($view === 'post') {
     }
     // One address per post: /my-post, /?p=my-post and /index.php?p=my-post answer
     // 301 to /my-post/ (clean URLs on), instead of a duplicate copy of the page.
-    if ($post && !$preview && empty($isFront) && pb_setting('pretty_urls') === '1' && ($pbMethod === 'GET' || $pbMethod === 'HEAD')) {
+    // A page moved under a parent does the same: /history/ → /about-us/history/, and a
+    // wrong or old parent in the address goes to the right one.
+    if ($post && !$preview && empty($isFront) && (pb_setting('pretty_urls') === '1' || !empty($pbNested)) && ($pbMethod === 'GET' || $pbMethod === 'HEAD')) {
         $want = pb_url('post', $post['slug']);
         $have = rawurldecode((string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH));
         if ($have !== $want) {
@@ -236,12 +244,28 @@ if ($view === 'post') {
 
         if ($post['type'] === 'page') {
             // A page: just the title and content — no date, author, category or post navigation.
+            // A child page adds breadcrumbs; a parent page can list its sub-pages as cards.
+            $crumbs = empty($isFront) ? pb_page_breadcrumbs($post) : null;
+            $subHtml = '';
+            if (pb_post_meta($post['id'], 'subpages_list', '1') === '1' && ($kids = pb_page_children((int) $post['id']))) {
+                $info = [];
+                foreach (pb_all('SELECT id, excerpt, seo_description FROM posts WHERE id IN (' . implode(',', array_map('intval', array_column($kids, 'id'))) . ')') as $r) {
+                    $info[(int) $r['id']] = $r['seo_description'] !== '' ? $r['seo_description'] : $r['excerpt'];
+                }
+                $subHtml = '<ul class="pb-subpages">';
+                foreach ($kids as $k) {
+                    $subHtml .= '<li><a href="' . pb_e(pb_url('post', $k['slug'])) . '"><strong>' . pb_e($k['title']) . '</strong>'
+                              . (($info[$k['id']] ?? '') !== '' ? '<span>' . pb_e(pb_text_excerpt($info[$k['id']], 140)) . '</span>' : '') . '</a></li>';
+                }
+                $subHtml .= '</ul>';
+            }
             ob_start(); ?>
 <div class="pb-wrap pb-article-wrap">
 <?php if ($preview): ?>
   <div class="pb-preview-bar">Preview &middot; <?= pb_e(pb_status_label($post['status'], $post['published_at'])) ?> page &middot; not visible to the public.
     <a href="<?= pb_e(pb_url('admin', 'view=edit&id=' . (int) $post['id'])) ?>">Back to editor</a></div>
 <?php endif; ?>
+<?= $crumbs ? '  ' . $crumbs['html'] . "\n" : '' ?>
   <article class="pb-article pb-static">
 <?= pb_apply_filters('pb_page_header', '    <header class="pb-article-head"><h1>' . pb_e($post['title']) . "</h1></header>\n", $post) /* addons: '' when the page's first block carries the heading */ ?>
 <?php if ($img !== ''): ?>
@@ -250,12 +274,18 @@ if ($view === 'post') {
     <div class="pb-content">
 <?= pb_apply_filters('pb_post_content', pb_add_img_dims($post['body']), $post) /* sanitized on save; plugins may add to it */ ?>
     </div>
+<?= $subHtml ?>
   </article>
 </div>
 <?php
             $content = ob_get_clean();
             if ($preview) header('Cache-Control: no-store');
             $jsonld = ['@context' => 'https://schema.org', '@type' => 'WebPage', 'name' => $post['title'], 'description' => $desc, 'url' => $url];
+            if ($crumbs) { // WebPage + BreadcrumbList together
+                unset($jsonld['@context']);
+                $jsonld['breadcrumb'] = ['@id' => $url . '#breadcrumb'];
+                $jsonld = ['@context' => 'https://schema.org', '@graph' => [$jsonld, ['@id' => $url . '#breadcrumb'] + $crumbs['jsonld']]];
+            }
             pb_render_page(['title' => $pageTitle, 'description' => $desc, 'canonical' => $url, 'image' => $shareImg,
                 'jsonld' => $preview ? null : $jsonld, 'noindex' => $preview,
                 'post' => $post, 'front' => !empty($isFront)], $content); // post/front: context for pb_page_meta filters

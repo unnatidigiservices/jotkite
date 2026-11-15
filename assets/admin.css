@@ -303,6 +303,8 @@ input[readonly], textarea[readonly] { background: var(--pb-surface-2); }
 .pb-nav-table input { margin: 0; }
 .pb-nav-table input[type="checkbox"] { width: auto; display: inline-block; }
 .pb-nav-table td .pb-btn { margin-left: 3px; }
+.pb-nav-table tr.pb-nav-sub td:first-child { padding-left: 30px; position: relative; }
+.pb-nav-table tr.pb-nav-sub td:first-child::before { content: "↳"; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--pb-muted, #6b7280); }
 .pb-nav-add { margin: 12px 0 16px; align-items: center; }
 .pb-nav-add select { width: auto; margin: 0; }
 .pb-design-preview .pbp-page { border: 1px solid var(--pb-border); border-radius: 10px; padding: 18px; margin-bottom: 10px; background: var(--pbp-bg, #fff); color: var(--pbp-text, #1b2a45); font-family: var(--pbp-font, inherit); font-size: var(--pbp-size, 16px); }

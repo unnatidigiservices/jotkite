@@ -27,6 +27,19 @@
 .pb-topnav a, .pb-subnav a { text-decoration: none; color: var(--pb-muted); font-weight: 550; padding: 4px 0; border-bottom: 2px solid transparent; }
 .pb-topnav a:hover, .pb-subnav a:hover, .pb-topnav a[aria-current="page"], .pb-subnav a[aria-current="page"] { color: var(--pb-accent); border-bottom-color: var(--pb-accent); }
 .pb-subnav-bar { border-bottom: 1px solid var(--pb-border); margin: -32px 0 28px; padding: 8px 0; font-size: 15px; }
+/* dropdown menus (Navigation sub-items): any theme's nav can hold .pb-dd groups */
+.pb-dd { position: relative; display: inline-flex; align-items: center; }
+.pb-dd-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 32px; margin-left: -2px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
+.pb-dd-btn:hover, .pb-dd-btn:focus-visible { background: rgba(127, 127, 127, .14); }
+.pb-dd-btn svg { transition: transform .15s; }
+.pb-dd-open > .pb-dd-btn svg { transform: rotate(180deg); }
+.pb-dd-menu { display: none; position: absolute; top: 100%; left: 0; z-index: 60; min-width: 210px; max-width: 300px; flex-direction: column; padding: 6px; background: #fff; border: 1px solid var(--pb-border); border-radius: 10px; box-shadow: 0 12px 30px rgba(15, 27, 61, .14); }
+.pb-dd-menu a { display: block; padding: 9px 12px !important; border: 0 !important; border-radius: 6px; color: var(--pb-text) !important; font-weight: 500; white-space: normal; line-height: 1.35; }
+.pb-dd-menu a:hover, .pb-dd-menu a[aria-current="page"] { background: var(--pb-surface); color: var(--pb-accent) !important; }
+.pb-dd-open > .pb-dd-menu { display: flex; }
+@media (hover: hover) { .pb-dd:hover > .pb-dd-menu, .pb-dd:focus-within > .pb-dd-menu { display: flex; } }
+.pb-nav-child { padding-left: 22px !important; font-weight: 500 !important; font-size: .94em !important; }
+.pb-dd-lit > .pb-dd-top { color: var(--pb-accent); }
 .pb-footer { border-top: 1px solid var(--pb-border); padding: 22px 0; color: var(--pb-muted); font-size: 14px; }
 
 /* list page */
@@ -92,6 +105,13 @@
 .pb-crumbs { font-size: 14px; color: var(--pb-muted); margin-bottom: 14px; }
 .pb-crumbs a { color: var(--pb-muted); text-decoration: none; }
 .pb-crumbs a:hover { color: var(--pb-accent); }
+.pb-crumbs [aria-current="page"] { color: var(--pb-text); }
+/* sub-page cards (the [Sub-pages] list under a parent page) */
+.pb-subpages { list-style: none; margin: 28px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.pb-subpages a { display: block; height: 100%; padding: 16px 18px; border: 1px solid var(--pb-border); border-radius: 12px; text-decoration: none; color: var(--pb-text); background: #fff; }
+.pb-subpages a:hover { border-color: var(--pb-accent); }
+.pb-subpages strong { display: block; font-size: 1.05em; color: var(--pb-accent); margin-bottom: 4px; }
+.pb-subpages span { display: block; font-size: .92em; color: var(--pb-muted); line-height: 1.45; }
 .pb-article-head h1 { margin: 0 0 10px; line-height: 1.2; }
 .pb-article-head { margin-bottom: 22px; }
 .pb-cover { margin: 0 0 28px; }

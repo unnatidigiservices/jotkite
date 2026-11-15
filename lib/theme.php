@@ -90,20 +90,76 @@ function pb_design_css() {
     return $css;
 }
 
-function pb_nav_html($class) {
+/**
+ * The menu (Settings → Navigation) as HTML.
+ * $mode: 'dropdown' (default) sub-items open under their main link, from a ▾ button
+ *        (hover or keyboard on computers, a tap on phones); assets/nav.js does the tapping.
+ *        'stacked'  sub-items listed right under their main link, indented (menus that are
+ *        already a column, like a phone panel).
+ *        'top'      main links only (footers).
+ */
+function pb_nav_html($class, $mode = 'dropdown') {
     $items = pb_nav_items();
     if (!$items) return '';
     $here = (string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
-    $h = '<nav class="' . pb_e($class) . '" aria-label="Blog navigation">';
-    foreach ($items as $it) {
-        $url = (string) $it['url'];
+    $isCurrent = function ($url) use ($here) {
         // The blog's home link stays lit on its posts (/blog/my-post/), but a site installed at the
         // domain root has every page under "/", so there Home is current only on the homepage.
-        $current = $url === $here || (PB_BASE_PATH !== '' && $url === PB_BASE_PATH . '/' && strpos($here, PB_BASE_PATH . '/') === 0);
-        $h .= '<a href="' . pb_e($url) . '"' . ($current ? ' aria-current="page"' : '')
-            . (!empty($it['new_tab']) ? ' target="_blank" rel="noopener"' : '') . '>' . pb_e($it['label']) . '</a>';
+        return $url === $here || (PB_BASE_PATH !== '' && $url === PB_BASE_PATH . '/' && strpos($here, PB_BASE_PATH . '/') === 0);
+    };
+    $link = function ($it, $extra = '') use ($isCurrent) {
+        $url = (string) $it['url'];
+        return '<a href="' . pb_e($url) . '"' . $extra . ($isCurrent($url) ? ' aria-current="page"' : '')
+             . (!empty($it['new_tab']) ? ' target="_blank" rel="noopener"' : '') . '>' . pb_e($it['label']) . '</a>';
+    };
+    $h = '<nav class="' . pb_e($class) . '" aria-label="Blog navigation">';
+    foreach ($items as $i => $it) {
+        $kids = $mode === 'top' ? [] : (array) ($it['children'] ?? []);
+        if (!$kids) { $h .= $link($it); continue; }
+        if ($mode === 'stacked') {
+            $h .= $link($it);
+            foreach ($kids as $k) $h .= $link($k, ' class="pb-nav-child"');
+            continue;
+        }
+        // A main link with sub-items: lit when one of them is the current page too.
+        $lit = false;
+        foreach ($kids as $k) if ($isCurrent((string) $k['url'])) $lit = true;
+        $id = 'pb-dd-' . preg_replace('/[^a-z0-9-]/', '', strtolower($class)) . '-' . $i;
+        $h .= '<div class="pb-dd' . ($lit ? ' pb-dd-lit' : '') . '">' . $link($it, ' class="pb-dd-top"')
+            . '<button type="button" class="pb-dd-btn" aria-expanded="false" aria-controls="' . $id . '" aria-label="' . pb_e($it['label']) . ': more pages">'
+            . '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2 4.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'
+            . '<div class="pb-dd-menu" id="' . $id . '">';
+        foreach ($kids as $k) $h .= $link($k);
+        $h .= '</div></div>';
     }
     return $h . '</nav>';
+}
+// True when the menu has sub-items (the page then loads assets/nav.js for the dropdowns).
+function pb_nav_has_children() {
+    foreach (pb_nav_items() as $it) if (!empty($it['children'])) return true;
+    return false;
+}
+
+/**
+ * Breadcrumbs for a child page: Home › About Us › History (links, the page itself last).
+ * Returns ['html' => '<nav class="pb-crumbs">…', 'jsonld' => BreadcrumbList] or null for a top-level page.
+ */
+function pb_page_breadcrumbs(array $post) {
+    if (($post['type'] ?? '') !== 'page') return null;
+    $up = pb_page_ancestors((int) $post['id']);
+    if (!$up) return null;
+    $trail = [['Home', pb_url()]];
+    foreach ($up as $a) $trail[] = [$a['title'], pb_url('post', $a['slug'])];
+    $trail[] = [$post['title'], pb_url('post', $post['slug'])];
+    $html = '<nav class="pb-crumbs" aria-label="Breadcrumb">';
+    $items = [];
+    foreach ($trail as $i => [$name, $url]) {
+        $last = $i === count($trail) - 1;
+        if ($i) $html .= ' <span aria-hidden="true">›</span> ';
+        $html .= $last ? '<span aria-current="page">' . pb_e($name) . '</span>' : '<a href="' . pb_e($url) . '">' . pb_e($name) . '</a>';
+        $items[] = ['@type' => 'ListItem', 'position' => $i + 1, 'name' => $name, 'item' => pb_abs_url($url)];
+    }
+    return ['html' => $html . '</nav>', 'jsonld' => ['@type' => 'BreadcrumbList', 'itemListElement' => $items]];
 }
 
 /**
@@ -162,6 +218,10 @@ function pb_render_page(array $meta, $content) {
     // The photo viewer script, only on pages that have a gallery.
     if (strpos($content, 'class="pb-gallery"') !== false) {
         $bodyEnd .= '<script src="' . pb_e(PB_BASE_PATH . '/assets/gallery.js?v=' . PB_VERSION) . '" defer></script>' . "\n";
+    }
+    // Dropdown menus: opened by a tap on phones (hover and keyboard work without it).
+    if (pb_nav_has_children()) {
+        $bodyEnd .= '<script src="' . pb_e(PB_BASE_PATH . '/assets/nav.js?v=' . PB_VERSION) . '" defer></script>' . "\n";
     }
     // Likes, sharing and comments (lib/engage.php): only under posts.
     if (strpos($content, 'class="pb-engage"') !== false) {

@@ -70,7 +70,7 @@ return function (array $page) { ?>
 | `head` | Everything for `<head>`: charset, viewport, title, SEO and social tags, canonical, JSON-LD, `blog.css`, your `theme.css`, and plugin head tags. **Always print it.** |
 | `content` | The page body (post list, post, page, 404…). Uses the standard `pb-` classes from `assets/blog.css`, so style or override those. |
 | `body_end` | Plugin scripts. **Print it just before `</body>`.** |
-| `nav` | Menu items from Settings → Navigation (`label`, `url`, `new_tab`). `pb_nav_html($class)` renders them with the current page marked. |
+| `nav` | Menu items from Settings → Navigation (`label`, `url`, `new_tab`, and from 0.33 `children`: sub-items with the same keys). `pb_nav_html($class, $mode)` renders them with the current page marked. `$mode` (0.33): `'dropdown'` (default; a ▾ button opens each main link's sub-items, styled by blog.css and opened by a tap via assets/nav.js), `'stacked'` (sub-items listed under their main link with class `pb-nav-child`, for menus that are already a column), or `'top'` (main links only, for footers). |
 | `blog_title`, `blog_url` (the homepage), `posts_url` (the post list: same as `blog_url`, or `/posts/` when a Page is the homepage), `site_url`, `feed_url`, `favicon`, `year`, `lang` | Site basics. Point search forms at `posts_url`. |
 | `theme_url`, `theme_version` | URL of your addon folder and your addon.json version, for your own assets (`theme.js?v=...`). |
 | `settings` | Your theme's settings, defaults included. |
@@ -134,6 +134,8 @@ pb_add_filter('pb_post_content', function ($html, $post) {
 | `pb_strip_photo_metadata` | filter | `$strip` (bool, from Settings → General): return `true` to always remove photo details (EXIF: location, camera, date) on upload. Settings then shows the option as locked (0.32) |
 
 **Page context in `pb_page_meta` (0.32).** On posts and Pages, `$meta['post']` is the post row. `$meta['front']` is `true` on the homepage (a homepage Page, or page 1 of the latest posts). Use them to add structured data to one kind of page, for example an organisation's details on the homepage.
+
+**Child pages (0.33).** A Page can have a parent Page (`posts.parent_id`; `posts.page_order` sorts siblings). `pb_url('post', $slug)` already returns the nested address (`/about-us/history/`), so link with it rather than building addresses yourself. Helpers: `pb_page_ancestors($slugOrId)` (parents, top first), `pb_page_path($slug)` (`about-us/history`), `pb_page_children($id)` (published sub-pages in order), `pb_page_breadcrumbs($post)` (`['html', 'jsonld']`, or `null` for a top-level page). A child page's `jsonld` in `pb_page_meta` is an `@graph` holding the WebPage and its BreadcrumbList; don't add a second BreadcrumbList.
 
 The optional third argument to `pb_add_action` / `pb_add_filter` is a priority (lower runs first; default 10). Exceptions inside a hook are caught and logged, and the rest of the page still renders.
 

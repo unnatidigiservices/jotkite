@@ -393,18 +393,23 @@
   const navForm = $('#pbNavForm');
   if (navForm) {
     const rows = $('#pbNavRows');
-    const addRow = (label, url) => {
+    const addRow = (label, url, sub) => {
       const tr = $('#pbNavTpl').content.firstElementChild.cloneNode(true);
       $('[data-k="label"]', tr).value = label || '';
       $('[data-k="url"]', tr).value = url || '';
+      const subBox = $('[data-k="sub"]', tr);
+      if (subBox && sub && rows.children.length) { subBox.checked = true; tr.classList.add('pb-nav-sub'); }
       rows.appendChild(tr);
       $('[data-k="label"]', tr).focus();
     };
     $('#pbNavAdd').addEventListener('click', () => addRow());
     $('#pbNavQuick').addEventListener('change', function () {
       const o = this.selectedOptions[0];
-      if (o && o.value) addRow(o.dataset.label, o.value);
+      if (o && o.value) addRow(o.dataset.label, o.value, o.dataset.sub === '1');
       this.value = '';
+    });
+    rows.addEventListener('change', (e) => { // indent sub-items as you tick them
+      if (e.target.matches('[data-k="sub"]')) e.target.closest('[data-nav-row]').classList.toggle('pb-nav-sub', e.target.checked);
     });
     rows.addEventListener('click', (e) => {
       const tr = e.target.closest('[data-nav-row]');
@@ -658,6 +663,8 @@
     typeSel.addEventListener('change', () => {
       const page = typeSel.value === 'page';
       ['#pbPinWrap', '#pbCatWrap', '#pbCommentsWrap'].forEach((s) => { const el = $(s); if (el) el.hidden = page; });
+      const parentWrap = $('#pbParentWrap');
+      if (parentWrap) parentWrap.hidden = !page;
       if (title) title.placeholder = page ? 'Page title (e.g. About)' : 'Your next post…';
     });
   }

@@ -10,10 +10,11 @@
  */
 if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 
-define('PB_VERSION', '0.32.3');
+define('PB_VERSION', '0.33.0');
 define('PB_HOMEPAGE', 'https://jotkite.com');                             // project info, docs and support
 define('PB_REPO_URL', 'https://github.com/unnatidigiservices/jotkite');    // source code and issues
-define('PB_SCHEMA_VERSION', 8);
+define('PB_SCHEMA_VERSION', 9);
+define('PB_PAGE_DEPTH', 4); // child pages: at most 4 levels (/a/b/c/d/)
 define('PB_DATA_DIR', PB_ROOT . '/data');
 define('PB_UPLOAD_DIR', PB_ROOT . '/uploads');
 // The site's web root: PB_ROOT itself when JotKite runs at a domain root
@@ -496,7 +497,14 @@ function pb_migrate(PDO $pdo) {
             }
         }
     }
-    // Future schema changes go here as: if ($v < 9) { ... }
+    if ($v < 9) {
+        // 0.33: child pages. A page can sit under another page (/about-us/history/);
+        // page_order sorts sub-pages and sub-page cards. Deleting a parent lifts its children up.
+        $pdo->exec('ALTER TABLE posts ADD COLUMN parent_id INTEGER REFERENCES posts(id) ON DELETE SET NULL');
+        $pdo->exec('ALTER TABLE posts ADD COLUMN page_order INTEGER NOT NULL DEFAULT 0');
+        $pdo->exec('CREATE INDEX idx_posts_parent ON posts(parent_id)');
+    }
+    // Future schema changes go here as: if ($v < 10) { ... }
     $pdo->exec('PRAGMA user_version = ' . (int) PB_SCHEMA_VERSION);
     $pdo->commit();
     if ($v < 5) $pdo->exec('PRAGMA foreign_keys = ON');
@@ -706,20 +714,51 @@ function pb_nav_defaults() {
         ['label' => 'Contact', 'url' => $site . '/contact.html', 'new_tab' => false],
     ];
 }
+// The menu as a tree: [['label','url','new_tab','children' => [same, without children]], …].
+// It is stored flat, each sub-item marked 'sub' => true under the item above it.
+// Themes that predate sub-items simply show the top level.
 function pb_nav_items() {
     $raw = (string) pb_setting('nav_items');
     $items = $raw !== '' ? json_decode($raw, true) : null;
-    return pb_apply_filters('pb_nav_items', is_array($items) ? $items : pb_nav_defaults());
+    return pb_apply_filters('pb_nav_items', pb_nav_tree(is_array($items) ? $items : pb_nav_defaults()));
 }
-// Cleans a submitted nav list: drops blank rows and unsafe URLs, caps at 12 links.
+function pb_nav_tree(array $flat) {
+    $tree = [];
+    foreach ($flat as $it) {
+        if (!is_array($it) || !isset($it['label'], $it['url'])) continue;
+        $sub = !empty($it['sub']) && $tree;
+        unset($it['sub']);
+        if ($sub) { $tree[count($tree) - 1]['children'][] = $it; continue; }
+        $it['children'] = [];
+        $tree[] = $it;
+    }
+    return $tree;
+}
+// The tree back to the stored, flat form (the Navigation editor's rows).
+function pb_nav_flat(array $tree) {
+    $out = [];
+    foreach ($tree as $it) {
+        $kids = $it['children'] ?? [];
+        unset($it['children']);
+        $out[] = $it;
+        foreach ($kids as $k) { unset($k['children']); $k['sub'] = true; $out[] = $k; }
+    }
+    return $out;
+}
+// Cleans a submitted nav list: drops blank rows and unsafe URLs; up to 12 main links, 40 in all.
 function pb_nav_clean(array $rows) {
     $out = [];
+    $top = 0;
     foreach ($rows as $r) {
         $label = trim((string) ($r['label'] ?? ''));
         $url = trim((string) ($r['url'] ?? ''));
         if ($label === '' || $url === '' || pb_safe_url($url) === null) continue;
-        $out[] = ['label' => substr($label, 0, 40), 'url' => substr($url, 0, 300), 'new_tab' => !empty($r['new_tab'])];
-        if (count($out) >= 12) break;
+        $sub = !empty($r['sub']) && $out; // the first link can't be a sub-item
+        if (!$sub && $top >= 12) continue;
+        $item = ['label' => substr($label, 0, 40), 'url' => substr($url, 0, 300), 'new_tab' => !empty($r['new_tab'])];
+        if ($sub) $item['sub'] = true; else $top++;
+        $out[] = $item;
+        if (count($out) >= 40) break;
     }
     return $out;
 }
@@ -1117,6 +1156,14 @@ function pb_post_save($user, $postId, array $in) {
         $fields['type'] = $type;
         $fields['pinned'] = $type === 'post' && !empty($in['pinned']) ? 1 : 0;
         if ($type === 'page') $fields['category_id'] = null;
+        // Child pages: only a page has a parent, and only one the editor offers (no loops, not too deep).
+        if (array_key_exists('parent_id', $in)) {
+            $parent = (int) $in['parent_id'];
+            $fields['parent_id'] = $type === 'page' && $parent && isset(pb_page_parent_options($post ? (int) $post['id'] : 0)[$parent]) ? $parent : null;
+        } elseif ($type === 'post') {
+            $fields['parent_id'] = null;
+        }
+        if (array_key_exists('page_order', $in)) $fields['page_order'] = max(-999, min(999, (int) $in['page_order']));
     } elseif (!$post) {
         $fields['type'] = 'post';
     }
@@ -1132,6 +1179,10 @@ function pb_post_save($user, $postId, array $in) {
         $fields['id'] = (int) $post['id'];
         pb_q('UPDATE posts SET ' . implode(', ', $sets) . ' WHERE id = :id', $fields);
         if ((int) $post['author_id'] !== (int) $user['id']) pb_log_event($post['id'], $user['id'], 'edited');
+        // A page that stopped being a page takes its sub-pages' link with it: they move up a level.
+        if (($fields['type'] ?? $post['type']) === 'post') pb_q('UPDATE posts SET parent_id = NULL WHERE parent_id = ?', [(int) $post['id']]);
+        if (isset($in['subpages_present'])) pb_post_meta_set((int) $post['id'], 'subpages_list', !empty($in['subpages_list']) ? null : '0');
+        pb_page_tree(true);
         pb_do_action('pb_post_saved', (int) $post['id'], $user);
         return [(int) $post['id'], null];
     }
@@ -1141,6 +1192,8 @@ function pb_post_save($user, $postId, array $in) {
     $cols = array_keys($fields);
     pb_q('INSERT INTO posts (' . implode(', ', $cols) . ') VALUES (:' . implode(', :', $cols) . ')', $fields);
     $id = (int) pb_db()->lastInsertId();
+    if (isset($in['subpages_present']) && empty($in['subpages_list'])) pb_post_meta_set($id, 'subpages_list', '0');
+    pb_page_tree(true);
     pb_log_event($id, $user['id'], $fields['type'] === 'page' ? 'created page' : 'created');
     pb_do_action('pb_post_saved', $id, $user);
     return [$id, null];
@@ -1568,6 +1621,89 @@ function pb_front_page() {
     $cache = $p && $p['type'] === 'page' && pb_post_is_public($p) ? $p : null;
     return $cache;
 }
+// ---- Child pages -------------------------------------------------------------
+// Every page's id, slug, title, parent and order, loaded once per request (sites
+// have tens of pages, not thousands). pb_page_tree(true) forgets it after a save.
+function pb_page_tree($reset = false) {
+    static $t = null;
+    if ($reset) { $t = null; return null; }
+    if ($t === null) {
+        $t = ['id' => [], 'slug' => []];
+        try {
+            $rows = pb_all("SELECT id, slug, title, parent_id, page_order, status, published_at FROM posts WHERE type = 'page' ORDER BY page_order, title");
+        } catch (Exception $e) { $rows = []; } // before the schema is ready
+        foreach ($rows as $r) {
+            $r['id'] = (int) $r['id'];
+            $r['parent_id'] = (int) $r['parent_id'];
+            $t['id'][$r['id']] = $r;
+            $t['slug'][$r['slug']] = $r['id'];
+        }
+    }
+    return $t;
+}
+// The page's parents, top first (the homepage Page is never one: its children sit at the top level).
+function pb_page_ancestors($slugOrId) {
+    $t = pb_page_tree();
+    $id = is_int($slugOrId) ? $slugOrId : ($t['slug'][(string) $slugOrId] ?? 0);
+    if (!isset($t['id'][$id])) return [];
+    $front = (int) pb_setting('front_page');
+    $out = [];
+    $seen = [$id => true];
+    $p = $t['id'][$id];
+    while ($p['parent_id'] && isset($t['id'][$p['parent_id']]) && count($out) < PB_PAGE_DEPTH - 1) {
+        $p = $t['id'][$p['parent_id']];
+        if (isset($seen[$p['id']]) || $p['id'] === $front) break;
+        $seen[$p['id']] = true;
+        array_unshift($out, $p);
+    }
+    return $out;
+}
+// "about-us/history" for a child page, the slug itself for anything else.
+function pb_page_path($slug) {
+    $segs = array_column(pb_page_ancestors((string) $slug), 'slug');
+    $segs[] = (string) $slug;
+    return implode('/', $segs);
+}
+// A page's published sub-pages, in page order.
+function pb_page_children($id) {
+    $out = [];
+    $now = pb_now();
+    foreach (pb_page_tree()['id'] as $r) {
+        if ($r['parent_id'] === (int) $id && $r['status'] === 'published' && $r['published_at'] !== null && $r['published_at'] <= $now) $out[] = $r;
+    }
+    return $out;
+}
+// Pages that may become $pageId's parent: not itself, not one of its own sub-pages, not the
+// homepage Page, and not so deep that the page (with its own sub-pages) passes PB_PAGE_DEPTH.
+// Returns [id => 'Parent › Child' label], in tree order.
+function pb_page_parent_options($pageId) {
+    $t = pb_page_tree();
+    $pageId = (int) $pageId;
+    $front = (int) pb_setting('front_page');
+    $kids = [];
+    foreach ($t['id'] as $r) $kids[isset($t['id'][$r['parent_id']]) ? $r['parent_id'] : 0][] = $r['id'];
+    // How many levels the page itself carries (1 = no sub-pages).
+    $height = function ($id, $d = 0) use (&$height, $kids) {
+        if ($d > PB_PAGE_DEPTH) return $d;
+        $h = 1;
+        foreach ($kids[$id] ?? [] as $k) $h = max($h, 1 + $height($k, $d + 1));
+        return $h;
+    };
+    $own = $pageId ? $height($pageId) : 1;
+    $out = [];
+    $walk = function ($parent, $depth, $prefix) use (&$walk, &$out, $kids, $t, $pageId, $front, $own) {
+        foreach ($kids[$parent] ?? [] as $id) {
+            if ($id === $pageId) continue; // itself and everything under it
+            $label = $prefix . $t['id'][$id]['title'];
+            if ($id === $front) { $walk($id, 1, ''); continue; } // the homepage can't be a parent; its children count as top level
+            if ($depth + $own <= PB_PAGE_DEPTH) $out[$id] = $label;
+            if ($depth < PB_PAGE_DEPTH) $walk($id, $depth + 1, $label . ' › ');
+        }
+    };
+    $walk(0, 1, '');
+    return $out;
+}
+
 function pb_url($type = 'home', $arg = null, $page = 1) {
     $pretty = pb_setting('pretty_urls') === '1';
     $b = PB_BASE_PATH . '/';
@@ -1575,7 +1711,9 @@ function pb_url($type = 'home', $arg = null, $page = 1) {
         case 'post':
             $front = pb_front_page();
             if ($front && $front['slug'] === $arg) return $b; // the homepage page lives at the root
-            return $pretty ? $b . rawurlencode($arg) . '/' : $b . '?p=' . rawurlencode($arg);
+            if (!$pretty) return $b . '?p=' . rawurlencode($arg);
+            // A child page carries its parents' slugs: /about-us/history/.
+            return $b . implode('/', array_map('rawurlencode', explode('/', pb_page_path((string) $arg)))) . '/';
         case 'posts': // the post list: the homepage, or /posts/ when a Page is the homepage
             if (!pb_front_page()) return pb_url('home', null, $page);
             if ($pretty) return $b . 'posts/' . ($page > 1 ? 'page/' . (int) $page . '/' : '');

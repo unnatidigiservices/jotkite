@@ -67,7 +67,7 @@ return function (array $page) {
       </button>
     </div>
     <div id="m1-menu" class="m1-menu" hidden>
-      <?= pb_nav_html('m1-menu-links') ?>
+      <?= pb_nav_html('m1-menu-links', 'stacked') ?>
       <form class="m1-search" role="search" method="get" action="<?= pb_e($page['posts_url'] ?? $page['blog_url']) ?>">
         <?php if (strpos((string) ($page['posts_url'] ?? ''), '?list=1') !== false): ?><input type="hidden" name="list" value="1"><?php endif; ?>
         <label class="m1-sr" for="m1-q">Search posts</label>
@@ -81,7 +81,7 @@ return function (array $page) {
   </main>
   <footer class="m1-footer">
     <div class="m1-footer-inner">
-      <?= pb_nav_html('m1-footer-nav') ?>
+      <?= pb_nav_html('m1-footer-nav', 'top') ?>
       <p><?= $footerText ?></p>
       <p class="m1-powered"><?= $page['powered_by'] ?></p>
     </div>

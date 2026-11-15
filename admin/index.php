@@ -909,6 +909,23 @@ if ($view === 'edit') {
           </select>
         </label>
         <label class="pb-check pb-small" id="pbPinWrap"<?= $isPage ? ' hidden' : '' ?>><input type="checkbox" name="pinned" value="1"<?= !empty($p['pinned']) ? ' checked' : '' ?> <?= $canEdit ? '' : 'disabled' ?>> 📌 Pin as Featured at the top of the blog home</label>
+        <?php $parentOpts = pb_page_parent_options((int) $p['id']);
+              $isFrontPage = $p['id'] && (int) pb_setting('front_page') === (int) $p['id'];
+              $kidCount = $p['id'] ? count(array_filter(pb_page_tree()['id'], function ($r) use ($p) { return $r['parent_id'] === (int) $p['id']; })) : 0; ?>
+        <div id="pbParentWrap"<?= $isPage ? '' : ' hidden' ?>>
+          <?php if (!$isFrontPage): ?>
+          <label class="pb-small">Parent page
+            <select name="parent_id" <?= $canEdit ? '' : 'disabled' ?>>
+              <option value="0">— None (top level) —</option>
+              <?php foreach ($parentOpts as $oid => $olabel): ?><option value="<?= (int) $oid ?>"<?= (int) ($p['parent_id'] ?? 0) === (int) $oid ? ' selected' : '' ?>><?= pb_e($olabel) ?></option><?php endforeach; ?>
+            </select>
+            <span class="pb-muted">Puts this page under another: its address becomes <code>/parent/<?= pb_e($p['slug'] !== '' ? $p['slug'] : 'this-page') ?>/</code>, with breadcrumbs. Old links redirect.</span>
+          </label>
+          <?php endif; ?>
+          <label class="pb-small">Order <input type="number" name="page_order" value="<?= (int) ($p['page_order'] ?? 0) ?>" min="-999" max="999" step="1" style="width:6em" <?= $canEdit ? '' : 'readonly' ?>>
+            <span class="pb-muted">Lower numbers come first among sub-pages of the same parent.</span></label>
+          <label class="pb-check pb-small"><input type="hidden" name="subpages_present" value="1"><input type="checkbox" name="subpages_list" value="1"<?= !$p['id'] || pb_post_meta($p['id'], 'subpages_list', '1') === '1' ? ' checked' : '' ?> <?= $canEdit ? '' : 'disabled' ?>> List this page's sub-pages at the end<?= $kidCount ? ' (' . $kidCount . ' now)' : '' ?></label>
+        </div>
       <?php endif; ?>
       <label class="pb-small" id="pbCatWrap"<?= $isPage ? ' hidden' : '' ?>>Category
         <select name="category_id" <?= $canEdit ? '' : 'disabled' ?>>
@@ -1424,24 +1441,29 @@ if ($view === 'edit') {
   <p class="pb-small">Developers: themes and plugins are a folder with an <code>addon.json</code> file. See the <a href="<?= PB_REPO_URL ?>/blob/main/docs/ADDONS.md" target="_blank" rel="noopener">addon guide</a> and the M1 theme in <code>addons/m1/</code> as a reference.</p>
 </div>
 <?php elseif ($stab === 'navigation'):
-    $navItems = pb_nav_items();
+    $navItems = pb_nav_flat(pb_nav_items());
     $cats = pb_all('SELECT name, slug FROM categories ORDER BY sort, name');
     $quick = ['Site home' => pb_site_base_path() . '/', 'Blog' => PB_BASE_PATH . '/', 'Contact' => pb_site_base_path() . '/contact.html', 'About' => pb_site_base_path() . '/about.html', 'RSS feed' => pb_url('feed')];
     foreach ($cats as $c) $quick['Category: ' . $c['name']] = pb_url('category', $c['slug']);
     if (PB_BASE_PATH === '') unset($quick['Site home'], $quick['Contact'], $quick['About']); // blog is the site: use Pages instead
+    $pageQuick = []; // sub-pages right after their parent: "Page: About Us › History"
     foreach (pb_all("SELECT title, slug FROM posts WHERE type = 'page' AND status = 'published' ORDER BY title") as $pg) {
-        $quick['Page: ' . $pg['title']] = pb_url('post', $pg['slug']);
-    } ?>
+        $up = array_column(pb_page_ancestors($pg['slug']), 'title');
+        $pageQuick['Page: ' . ($up ? implode(' › ', $up) . ' › ' : '') . $pg['title']] = [pb_url('post', $pg['slug']), $pg['title'], (bool) $up];
+    }
+    uksort($pageQuick, 'strcasecmp');
+    $quick += $pageQuick; ?>
 <div class="pb-two-col">
   <form method="post" class="pb-card" id="pbNavForm">
     <?= pb_csrf_field() ?><input type="hidden" name="do" value="nav_save">
     <table class="pb-table pb-nav-table">
-      <thead><tr><th>Label</th><th>Link</th><th title="Open in a new tab">New tab</th><th></th></tr></thead>
+      <thead><tr><th>Label</th><th>Link</th><th title="Show under the main link above, in its dropdown">Sub-item</th><th title="Open in a new tab">New tab</th><th></th></tr></thead>
       <tbody id="pbNavRows">
       <?php foreach ($navItems as $it): ?>
-        <tr data-nav-row>
+        <tr data-nav-row<?= !empty($it['sub']) ? ' class="pb-nav-sub"' : '' ?>>
           <td><input data-k="label" value="<?= pb_e($it['label']) ?>" maxlength="40" aria-label="Label"></td>
           <td><input data-k="url" value="<?= pb_e($it['url']) ?>" aria-label="Link"></td>
+          <td class="pb-center"><input type="checkbox" data-k="sub" value="1"<?= !empty($it['sub']) ? ' checked' : '' ?> aria-label="Sub-item of the link above"></td>
           <td class="pb-center"><input type="checkbox" data-k="new_tab" value="1"<?= !empty($it['new_tab']) ? ' checked' : '' ?> aria-label="Open in new tab"></td>
           <td class="pb-right"><button type="button" class="pb-btn pb-btn-sm" data-nav-move="-1" title="Move up">↑</button><button type="button" class="pb-btn pb-btn-sm" data-nav-move="1" title="Move down">↓</button><button type="button" class="pb-btn pb-btn-sm pb-btn-danger" data-nav-remove title="Remove">✕</button></td>
         </tr>
@@ -1452,7 +1474,7 @@ if ($view === 'edit') {
       <button type="button" class="pb-btn pb-btn-sm" id="pbNavAdd">+ Add link</button>
       <select id="pbNavQuick" aria-label="Quick add">
         <option value="">Quick add…</option>
-        <?php foreach ($quick as $label => $url): ?><option value="<?= pb_e($url) ?>" data-label="<?= pb_e(preg_replace('/^Category: /', '', $label)) ?>"><?= pb_e($label) ?></option><?php endforeach; ?>
+        <?php foreach ($quick as $label => $url): [$url, $short, $isSub] = is_array($url) ? $url : [$url, preg_replace('/^Category: /', '', $label), false]; ?><option value="<?= pb_e($url) ?>" data-label="<?= pb_e($short) ?>"<?= $isSub ? ' data-sub="1"' : '' ?>><?= pb_e($label) ?></option><?php endforeach; ?>
       </select>
     </div>
     <?php if ($showGr): ?>
@@ -1466,6 +1488,7 @@ if ($view === 'edit') {
     <template id="pbNavTpl"><tr data-nav-row>
       <td><input data-k="label" maxlength="40" aria-label="Label"></td>
       <td><input data-k="url" placeholder="/page.html or https://…" aria-label="Link"></td>
+      <td class="pb-center"><input type="checkbox" data-k="sub" value="1" aria-label="Sub-item of the link above"></td>
       <td class="pb-center"><input type="checkbox" data-k="new_tab" value="1" aria-label="Open in new tab"></td>
       <td class="pb-right"><button type="button" class="pb-btn pb-btn-sm" data-nav-move="-1" title="Move up">↑</button><button type="button" class="pb-btn pb-btn-sm" data-nav-move="1" title="Move down">↓</button><button type="button" class="pb-btn pb-btn-sm pb-btn-danger" data-nav-remove title="Remove">✕</button></td>
     </tr></template>
@@ -1473,7 +1496,8 @@ if ($view === 'edit') {
   <div class="pb-card">
     <h3 class="pb-h3">Tips</h3>
     <p class="pb-small">Links can be site pages (<code>/contact.html</code>), blog pages (<code><?= pb_e(PB_BASE_PATH) ?>/category/…/</code>) or other websites (<code>https://…</code>).</p>
-    <p class="pb-small">Up to 12 links. Empty rows are ignored when you save.</p>
+    <p class="pb-small"><strong>Dropdowns:</strong> tick <em>Sub-item</em> on a link to show it under the main link above it (for example History and Management under About Us). On phones they open with a tap on ▾. Sub-pages added with Quick add are ticked for you.</p>
+    <p class="pb-small">Up to 12 main links and 40 in all. Empty rows are ignored when you save.</p>
   </div>
 </div>
 <?php else:
@@ -1732,6 +1756,18 @@ if ($view === 'edit') {
     $rows = pb_all("SELECT p.id, p.title, p.slug, p.status, p.published_at, p.updated_at, p.submitted_at, p.pinned, u.name AS author_name, c.name AS category_name
                     FROM posts p JOIN users u ON u.id = p.author_id LEFT JOIN categories c ON c.id = p.category_id
                     WHERE {$cond}{$scope} ORDER BY " . ($tab === 'pending' ? 'p.submitted_at ASC' : 'p.updated_at DESC') . ' LIMIT 200', $params);
+    if ($ptype === 'page' && $tab !== 'pending') {
+        // Pages in site order: each parent followed by its sub-pages (in page order), indented.
+        $tree = pb_page_tree()['id'];
+        $key = function ($id) use ($tree) {
+            $k = '';
+            foreach (array_merge(pb_page_ancestors((int) $id), isset($tree[(int) $id]) ? [$tree[(int) $id]] : []) as $a) $k .= sprintf('%04d', (int) $a['page_order'] + 1000) . strtolower($a['title']) . "\x01";
+            return $k;
+        };
+        foreach ($rows as &$r) { $r['_sort'] = $key($r['id']); $r['_depth'] = count(pb_page_ancestors((int) $r['id'])); }
+        unset($r);
+        usort($rows, function ($a, $b) { return strcmp($a['_sort'], $b['_sort']); });
+    }
     $title = $ptype === 'page' ? 'Pages' : ($mine && !$isEditor ? 'My posts' : 'Posts'); ?>
 <div class="pb-tabs">
   <?php foreach ($tabs as $k => [$label]): if ($k !== 'all' && $k !== $tab && !$counts[$k]) continue; ?>
@@ -1749,7 +1785,7 @@ if ($view === 'edit') {
     <thead><tr><th>Title</th><th>Status</th><?php if (!$mine): ?><th>Author</th><?php endif; ?><th>Updated</th></tr></thead>
     <tbody>
     <?php foreach ($rows as $r): ?>
-      <tr><td><a class="pb-post-link" href="<?= pb_e(pb_admin_url('view=edit&id=' . (int) $r['id'])) ?>"><?= pb_e($r['title']) ?></a><?= !empty($r['pinned']) ? ' <span class="pb-pin" title="Pinned as Featured on the blog home">📌 Featured</span>' : '' ?>
+      <tr><td<?= !empty($r['_depth']) ? ' style="padding-left:' . (12 + 22 * (int) $r['_depth']) . 'px"' : '' ?>><?= !empty($r['_depth']) ? '<span class="pb-muted" aria-hidden="true">↳ </span>' : '' ?><a class="pb-post-link" href="<?= pb_e(pb_admin_url('view=edit&id=' . (int) $r['id'])) ?>"><?= pb_e($r['title']) ?></a><?= !empty($r['pinned']) ? ' <span class="pb-pin" title="Pinned as Featured on the blog home">📌 Featured</span>' : '' ?>
           <?php if ($ptype === 'page'): ?><div class="pb-small pb-muted"><?= pb_e(pb_url('post', $r['slug'])) ?></div><?php endif; ?>
           <?php if ($r['category_name']): ?><div class="pb-small pb-muted"><?= pb_e($r['category_name']) ?></div><?php endif; ?></td>
         <td><?= pb_status_badge($r['status'], $r['published_at']) ?>
