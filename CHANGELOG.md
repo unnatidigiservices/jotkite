@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.33.1 — 2026-11-16
+
+- **JotKite School 1.0.4:** a new alumni setting, *Profile visibility at sign-up* (School → Alumni), chooses which "Who can see my profile" option the sign-up form starts on. The default is now *Everyone*; it was *Alumni and school staff only*. People can still change it when they sign up and later in My profile. Existing profiles don't change.
+- **JotKite School theme 1.1.1:** a menu with dropdowns stays on one line on laptops (up to 1400 px wide): the tagline under the school name is hidden there, and on small laptops (up to 1100 px) the Admissions button moves out of the menu (it stays in the top bar). Breadcrumbs and sub-page cards now sit inside the page width instead of running to the screen edges. Sites that added these fixes as Custom CSS can remove them.
+
 ## 0.33.0 — 2026-11-15
 
 - **Child pages.** In the page editor, *Parent page* puts a page under another page, for example History, Management and Our Mutt under About Us:
