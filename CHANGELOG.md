@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.33.2 — 2026-11-16
+
+- **JotKite School theme 1.1.2:** on phones the footer is shorter. Contact and Quick links sit side by side under the school's description, with Office hours below them, and a long email address wraps after the @ instead of mid-word. The Alumni community link has a drawn graduation-cap icon in the school's second colour instead of an emoji, so it looks the same on every phone and computer.
+
 ## 0.33.1 — 2026-11-16
 
 - **JotKite School 1.0.4:** a new alumni setting, *Profile visibility at sign-up* (School → Alumni), chooses which "Who can see my profile" option the sign-up form starts on. The default is now *Everyone*; it was *Alumni and school staff only*. People can still change it when they sign up and later in My profile. Existing profiles don't change.
