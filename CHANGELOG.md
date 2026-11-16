@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.33.5 — 2026-11-16
+
+- **JotKite School 1.0.6: a banner photo on the alumni page.** School → Alumni has a new *Photo at the top of the alumni page*, with optional *Text on the photo*. With a photo set, /alumni/ opens with a banner headed "Our alumni", the school's founding year and a *Join the alumni community* button (hidden for people already signed in). The photo is also used when the alumni page is shared. Without a photo the page looks as before.
+
 ## 0.33.4 — 2026-11-16
 
 - **Fix: Media refreshes after an upload again.** After uploading images in Media, the "uploaded ✓" message showed but the page didn't reload, so the new images only appeared after refreshing by hand. The same fault kept messages (such as "Link copied ✓") on screen on pages other than the post editor; they now disappear as they should.
