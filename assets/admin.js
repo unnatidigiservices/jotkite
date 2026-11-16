@@ -166,6 +166,10 @@
     return seg;
   }
 
+  // Declared up here, not next to toast(): pages without the editor stop at
+  // "if (!form) return" below, and toast() must work on them too (Media, Settings).
+  let toastTimer = null;
+
   // keepFormat: the server stores everything as WebP except these (favicon, social image).
   function upload(original, keepFormat) {
     return shrink(original).then((f) => send(f, keepFormat));
@@ -1117,7 +1121,6 @@
   // ======================================================================
   // PASTE FROM ANYWHERE — conversion lives in assets/paste.js (window.PBPaste)
   // ======================================================================
-  let toastTimer = null;
   function toast(msg, isError) {
     let t = $('#pbToast');
     if (!t) {

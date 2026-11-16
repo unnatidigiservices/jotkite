@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.33.4 — 2026-11-16
+
+- **Fix: Media refreshes after an upload again.** After uploading images in Media, the "uploaded ✓" message showed but the page didn't reload, so the new images only appeared after refreshing by hand. The same fault kept messages (such as "Link copied ✓") on screen on pages other than the post editor; they now disappear as they should.
+
+## 0.33.3 — 2026-11-16
+
+- **JotKite School 1.0.5: blur faces in photos.** In Media, open a photo and click *Blur faces…*. Drag an oval over each child's face (touch and drag on a phone), tap one to remove it, then *Blur and replace*. The faces are blurred beyond recognition, and the blurred copy replaces the photo in every post, page and setting that used it. **The original is deleted**, so no unblurred copy stays on the site. The copy gets a new file name, because browsers keep images for a long time and would otherwise go on showing the old one.
+  - Browsers that can find faces on their own show a *Find faces* button that marks them for you. It misses faces turned away or far back, so always check. In other browsers you mark faces by hand.
+  - Editors and Admins can blur any photo; Authors their own. GIFs can't be blurred.
+
 ## 0.33.2 — 2026-11-16
 
 - **JotKite School theme 1.1.2:** on phones the footer is shorter. Contact and Quick links sit side by side under the school's description, with Office hours below them, and a long email address wraps after the @ instead of mid-word. The Alumni community link has a drawn graduation-cap icon in the school's second colour instead of an emoji, so it looks the same on every phone and computer.
