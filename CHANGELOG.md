@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.33.9 — 2026-11-17
+
+- **JotKite School theme 1.1.3:** the footer credit now reads "Powered by JotKite School" and links to jotkite.com/school/.
+
+## 0.33.8 — 2026-11-17
+
+- **JotKite School 1.0.9: news and alumni in a row you can swipe.** The *Latest news* and *Alumni* blocks have a new *Layout* choice, *One row you can swipe*.
+  - **Latest news:** 4 cards across on computers, 2 on tablets and 1⅓ on phones. The edge of the next card shows there is more. *How many* can now also be 4.
+  - **Alumni:** computers show the profiles in rows of 5 (up to 10). Tablets and phones get a row to swipe, and phones show 3 profiles. A new *Which profiles* choice, *Different ones on each visit*, shows a random selection each time the page loads. *Profiles to show* can now be 10.
+  - Round arrow buttons appear only when there is more to see. Swiping, the trackpad and the keyboard work too.
+  - Blocks already on your site keep the grid until you change the option.
+
 ## 0.33.7 — 2026-11-17
 
 - **JotKite School 1.0.8: links inside block text.** In any School block's text (Text and photo, Facilities lines, Our story, FAQ answers, Admissions band and others), write `[the words](/page/)` to turn those words into a link, for example `Read [our story](/about-us/our-story/)`. Links to other websites open in a new tab. Links that aren't safe stay as plain words. Search results, page descriptions and Google's FAQ data show just the words. Each text box in the block editor now has a short reminder of how to do this.
