@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.33.6 — 2026-11-17
+
+- **JotKite School 1.0.7: a "Then and now" block.** School blocks has a new *Then and now* block: two photos side by side, each with a label on the photo (for example "1997" and "Today") and a caption, an arrow between them, a heading, optional text above, and an optional closing line below, for example a pledge or a thank-you. On phones the photos stack, one above the other. Both photos are cropped to the same shape so they line up, and the older photo gets a slight warm tint.
+
 ## 0.33.5 — 2026-11-16
 
 - **JotKite School 1.0.6: a banner photo on the alumni page.** School → Alumni has a new *Photo at the top of the alumni page*, with optional *Text on the photo*. With a photo set, /alumni/ opens with a banner headed "Our alumni", the school's founding year and a *Join the alumni community* button (hidden for people already signed in). The photo is also used when the alumni page is shared. Without a photo the page looks as before.
