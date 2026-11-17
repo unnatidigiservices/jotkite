@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.33.7 — 2026-11-17
+
+- **JotKite School 1.0.8: links inside block text.** In any School block's text (Text and photo, Facilities lines, Our story, FAQ answers, Admissions band and others), write `[the words](/page/)` to turn those words into a link, for example `Read [our story](/about-us/our-story/)`. Links to other websites open in a new tab. Links that aren't safe stay as plain words. Search results, page descriptions and Google's FAQ data show just the words. Each text box in the block editor now has a short reminder of how to do this.
+
 ## 0.33.6 — 2026-11-17
 
 - **JotKite School 1.0.7: a "Then and now" block.** School blocks has a new *Then and now* block: two photos side by side, each with a label on the photo (for example "1997" and "Today") and a caption, an arrow between them, a heading, optional text above, and an optional closing line below, for example a pledge or a thank-you. On phones the photos stack, one above the other. Both photos are cropped to the same shape so they line up, and the older photo gets a slight warm tint.
