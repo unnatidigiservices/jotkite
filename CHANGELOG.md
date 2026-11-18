@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.34.1 — 2026-11-18
+
+- **JotKite School 1.1.1: leave a category out of *Latest news*.** The *Latest news* block has a new *Leave out a category* choice. For example, leave out *Alumni stories* on the homepage when an *Alumni voices* block already shows them, so the same people don't appear twice. Posts without a category are still shown.
+- **Fix:** post cards inside a page (for example the *Latest news* block on the homepage) now always crop the cover photo to the same 16:9 shape. Covers wider than that used to leave a grey strip under the picture.
+
 ## 0.34.0 — 2026-11-18
 
 - **Addons that survive a Git deploy.** A Git deploy replaces the site folder, so addons that aren't in your repository (premium addons) disappeared from `addons/` after every deploy. Now `config.php` can name a second addons folder outside the site, for example `'addons_dir' => '/home/u123456789/jotkite-addons'`. Addons there are listed in Settings → Addons, marked "kept outside the site folder", and work as usual. Their CSS, JS, images and fonts are served at `/_addon/<addon>/…`, and only those file types are served. No server setup is needed. If an addon with the same name is also in `addons/`, that copy is used.
