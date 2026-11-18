@@ -18,7 +18,7 @@ if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 define('PB_ADDONS_DIR', PB_ROOT . '/addons');
 // Optional second folder, config.php 'addons_dir': addons kept outside the site
 // folder, so a Git deploy (which replaces the site folder) never removes them.
-// Their CSS, JS and images are served by addon-file.php.
+// Their CSS, JS and images are served at /_addon/<addon>/… by index.php (lib/addon-file.php).
 define('PB_EXTRA_ADDONS_DIR', (function () {
     $d = rtrim(str_replace('\\', '/', (string) pb_config('addons_dir')), '/');
     if ($d === '' || !is_dir($d)) return '';
@@ -158,7 +158,7 @@ function pb_addons() {
         $a = is_array($manifest) ? $manifest : [];
         $a['slug'] = $slug;
         $a['dir'] = $dir;
-        $a['url'] = PB_BASE_PATH . ($outside ? '/addon-file.php/' : '/addons/') . $slug;
+        $a['url'] = PB_BASE_PATH . ($outside ? '/_addon/' : '/addons/') . $slug;
         $a['outside'] = $outside;
         $a['name'] = (string) ($a['name'] ?? $slug);
         $a['version'] = (string) ($a['version'] ?? '0.0.0');

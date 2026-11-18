@@ -15,6 +15,12 @@
  */
 define('PB_ROOT', __DIR__);
 define('PB_BASE_PATH', rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/'));
+// Files of addons kept outside the site folder: /_addon/<addon>/<file> (lib/addon-file.php).
+$pbReqPath = rawurldecode((string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH));
+if (strpos($pbReqPath, PB_BASE_PATH . '/_addon/') === 0) {
+    require PB_ROOT . '/lib/addon-file.php';
+    pb_addon_file_serve(substr($pbReqPath, strlen(PB_BASE_PATH . '/_addon')));
+}
 require PB_ROOT . '/lib/postbase.php';
 require PB_ROOT . '/lib/theme.php';
 pb_load_plugins();

@@ -202,9 +202,7 @@ A Git deploy replaces the site folder, so an addon that isn't in your repository
 'addons_dir' => '/home/u123456789/jotkite-addons',
 ```
 
-with one folder per addon inside (`jotkite-addons/my-addon/addon.json`). They are listed and activated in Settings → Addons as usual. Always build file links from `$a['url']` (for example `pb_addon('my-addon')['url'] . '/style.css'`), never a hard-coded `/addons/…`: for these addons it points to `addon-file.php/my-addon`, which serves CSS, JS, images and fonts only. When the same name exists in both places, `addons/` wins.
-
-On Nginx, `addon-file.php/…` needs PATH_INFO passed to PHP (`fastcgi_split_path_info ^(.+\.php)(/.+)$;`).
+with one folder per addon inside (`jotkite-addons/my-addon/addon.json`). They are listed and activated in Settings → Addons as usual. Always build file links from `$a['url']` (for example `pb_addon('my-addon')['url'] . '/style.css'`), never a hard-coded `/addons/…`: for these addons it points to `/_addon/my-addon`, which `index.php` answers (code in `lib/addon-file.php`), serving CSS, JS, images and fonts only. It works with the usual rewrite rules (Apache `.htaccess`, Nginx `try_files … /index.php`), so nothing extra is needed on the server. When the same name exists in both places, `addons/` wins.
 
 ## Security checklist
 
