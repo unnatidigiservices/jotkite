@@ -3,6 +3,11 @@
 ## 0.34.0 — 2026-11-18
 
 - **Addons that survive a Git deploy.** A Git deploy replaces the site folder, so addons that aren't in your repository (premium addons) disappeared from `addons/` after every deploy. Now `config.php` can name a second addons folder outside the site, for example `'addons_dir' => '/home/u123456789/jotkite-addons'`. Addons there are listed in Settings → Addons, marked "kept outside the site folder", and work as usual. Their CSS, JS, images and fonts are served by the new `addon-file.php`, which serves only those file types. If an addon with the same name is also in `addons/`, that copy is used.
+- **JotKite School 1.1.0: an "Alumni voices" block.** School blocks has a new *Alumni voices* block for short quotes from former students, or from parents.
+  - Each quote card shows the words, a round photo (or the person's initials), their name, batch and what they do now, and an optional *Read the story →* link to a full post.
+  - **Layout:** *One row you can swipe* (3 across on computers, 2 on tablets, 1 on phones, with arrows) or *Grid*.
+  - *Show them in a different order on each visit* shuffles the cards.
+  - Google gets each person as a former student (alumni) of the school. These are not shown as star reviews: Google doesn't show stars for a school's own testimonials. Reviews with stars belong on the school's Google Business Profile.
 
 ## 0.33.9 — 2026-11-17
 
