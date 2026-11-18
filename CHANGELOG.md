@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.34.0 — 2026-11-18
+
+- **Addons that survive a Git deploy.** A Git deploy replaces the site folder, so addons that aren't in your repository (premium addons) disappeared from `addons/` after every deploy. Now `config.php` can name a second addons folder outside the site, for example `'addons_dir' => '/home/u123456789/jotkite-addons'`. Addons there are listed in Settings → Addons, marked "kept outside the site folder", and work as usual. Their CSS, JS, images and fonts are served by the new `addon-file.php`, which serves only those file types. If an addon with the same name is also in `addons/`, that copy is used.
+
 ## 0.33.9 — 2026-11-17
 
 - **JotKite School theme 1.1.3:** the footer credit now reads "Powered by JotKite School" and links to jotkite.com/school/.

@@ -16,6 +16,15 @@
 if (!defined('PB_ROOT')) { http_response_code(403); exit; }
 
 define('PB_ADDONS_DIR', PB_ROOT . '/addons');
+// Optional second folder, config.php 'addons_dir': addons kept outside the site
+// folder, so a Git deploy (which replaces the site folder) never removes them.
+// Their CSS, JS and images are served by addon-file.php.
+define('PB_EXTRA_ADDONS_DIR', (function () {
+    $d = rtrim(str_replace('\\', '/', (string) pb_config('addons_dir')), '/');
+    if ($d === '' || !is_dir($d)) return '';
+    $real = realpath($d);
+    return $real !== false && $real !== realpath(PB_ADDONS_DIR) ? $real : '';
+})());
 define('PB_ADDON_FIELD_TYPES', ['text', 'textarea', 'url', 'image', 'color', 'select', 'checkbox', 'number']);
 
 $GLOBALS['pb_hooks'] = ['action' => [], 'filter' => []];
@@ -131,19 +140,26 @@ function pb_addon_migrate($slug, $version, callable $fn) {
 }
 
 // --------------------------------------------------------------- discovery
-/** All addons found in addons/, keyed by slug. Invalid manifests are listed with an 'error'. */
+/**
+ * All addons found in addons/ (and in config.php 'addons_dir'), keyed by slug.
+ * Invalid manifests are listed with an 'error'. On a name clash addons/ wins.
+ */
 function pb_addons() {
     static $all = null;
     if ($all !== null) return $all;
     $all = [];
-    foreach (glob(PB_ADDONS_DIR . '/*', GLOB_ONLYDIR) ?: [] as $dir) {
+    $dirs = glob(PB_ADDONS_DIR . '/*', GLOB_ONLYDIR) ?: [];
+    if (PB_EXTRA_ADDONS_DIR !== '') $dirs = array_merge($dirs, glob(PB_EXTRA_ADDONS_DIR . '/*', GLOB_ONLYDIR) ?: []);
+    foreach ($dirs as $dir) {
         $slug = basename($dir);
-        if (!preg_match('/^[a-z0-9][a-z0-9-]{0,39}$/', $slug)) continue;
+        if (!preg_match('/^[a-z0-9][a-z0-9-]{0,39}$/', $slug) || isset($all[$slug])) continue;
+        $outside = PB_EXTRA_ADDONS_DIR !== '' && dirname($dir) === PB_EXTRA_ADDONS_DIR;
         $manifest = is_file($dir . '/addon.json') ? json_decode((string) file_get_contents($dir . '/addon.json'), true) : null;
         $a = is_array($manifest) ? $manifest : [];
         $a['slug'] = $slug;
         $a['dir'] = $dir;
-        $a['url'] = PB_BASE_PATH . '/addons/' . $slug;
+        $a['url'] = PB_BASE_PATH . ($outside ? '/addon-file.php/' : '/addons/') . $slug;
+        $a['outside'] = $outside;
         $a['name'] = (string) ($a['name'] ?? $slug);
         $a['version'] = (string) ($a['version'] ?? '0.0.0');
         $a['settings'] = array_values(array_filter((array) ($a['settings'] ?? []), function ($f) {

@@ -194,6 +194,18 @@ pb_add_action('pb_sitemap', function () { echo '<url><loc>' . pb_e(pb_abs_url('/
 
 Meta keys: up to 64 of `a-z 0-9 _ . : -`; prefix them with your slug (`places:rating`). Meta is deleted together with its post. Built-in galleries (`<figure class="pb-gallery">` with images) are available to plugins too: write that HTML into a post and the blog styles it and loads the photo viewer.
 
+## Addons outside the site folder (0.34+)
+
+A Git deploy replaces the site folder, so an addon that isn't in your repository disappears from `addons/` on the next deploy. Keep such addons in a folder outside the site and name it in `config.php`:
+
+```php
+'addons_dir' => '/home/u123456789/jotkite-addons',
+```
+
+with one folder per addon inside (`jotkite-addons/my-addon/addon.json`). They are listed and activated in Settings → Addons as usual. Always build file links from `$a['url']` (for example `pb_addon('my-addon')['url'] . '/style.css'`), never a hard-coded `/addons/…`: for these addons it points to `addon-file.php/my-addon`, which serves CSS, JS, images and fonts only. When the same name exists in both places, `addons/` wins.
+
+On Nginx, `addon-file.php/…` needs PATH_INFO passed to PHP (`fastcgi_split_path_info ^(.+\.php)(/.+)$;`).
+
 ## Security checklist
 
 - Start every PHP file with `if (!defined('PB_ROOT')) { http_response_code(403); exit; }`.

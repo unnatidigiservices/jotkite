@@ -22,6 +22,12 @@ return [
     // 'update_url' => 'https://app.unnatidigiservices.in/georank/includes/postbase/',
     // 'update_pubkey' => '',
 
+    // Optional: a second addons folder outside the site folder, for addons that
+    // aren't in your Git repository (premium addons). A Git deploy replaces the
+    // site folder and would remove them from addons/; here they stay. Use a full
+    // path, e.g. '/home/u123456789/jotkite-addons' (one folder per addon inside).
+    // 'addons_dir' => '',
+
     // Optional: the SMTP mailbox password (Settings → Comments & email) kept here
     // instead of the database. When set, the Settings field is ignored.
     // 'smtp_pass' => '',

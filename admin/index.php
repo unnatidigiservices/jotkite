@@ -1382,7 +1382,8 @@ if ($view === 'edit') {
       <div class="pb-addon<?= $active ? ' is-active' : '' ?><?= !empty($a['error']) ? ' is-broken' : '' ?>">
         <div class="pb-addon-head"><strong><?= pb_e($a['name']) ?></strong>
           <?php if (!empty($a['version'])): ?><span class="pb-small pb-muted">v<?= pb_e($a['version']) ?></span><?php endif; ?>
-          <?php if ($active): ?><span class="pb-badge pb-badge-published">Active</span><?php endif; ?></div>
+          <?php if ($active): ?><span class="pb-badge pb-badge-published">Active</span><?php endif; ?>
+          <?php if (!empty($a['outside'])): ?><span class="pb-small pb-muted" title="<?= pb_e($a['dir']) ?>">· kept outside the site folder</span><?php endif; ?></div>
         <?php if (!empty($a['description'])): ?><p class="pb-small"><?= pb_e($a['description']) ?></p><?php endif; ?>
         <?php if (!empty($a['author'])): ?><p class="pb-small pb-muted">By <?= !empty($a['homepage']) && pb_safe_url($a['homepage']) ? '<a href="' . pb_e($a['homepage']) . '" target="_blank" rel="noopener">' . pb_e($a['author']) . '</a>' : pb_e($a['author']) ?></p><?php endif; ?>
         <?php if (!empty($a['error'])): ?><p class="pb-small pb-danger-text">⚠ <?= pb_e($a['error']) ?></p><?php endif; ?>
@@ -1438,6 +1439,7 @@ if ($view === 'edit') {
 <div class="pb-card">
   <h3 class="pb-h3">Add or build an addon</h3>
   <p class="pb-small">Upload an addon folder into <code>addons/</code> (by FTP, File Manager or Git), then activate it here. For safety, addons can't be uploaded through this page — they run as code on your site, so only install addons you trust.</p>
+  <p class="pb-small">Site deployed with Git? Addons that aren't in your repository disappear from <code>addons/</code> on the next deploy. Keep them in a folder outside the site instead and name it in <code>config.php</code> as <code>'addons_dir'</code><?= PB_EXTRA_ADDONS_DIR !== '' ? ' (this site uses <code>' . pb_e(PB_EXTRA_ADDONS_DIR) . '</code>)' : '' ?>.</p>
   <p class="pb-small">Developers: themes and plugins are a folder with an <code>addon.json</code> file. See the <a href="<?= PB_REPO_URL ?>/blob/main/docs/ADDONS.md" target="_blank" rel="noopener">addon guide</a> and the M1 theme in <code>addons/m1/</code> as a reference.</p>
 </div>
 <?php elseif ($stab === 'navigation'):
