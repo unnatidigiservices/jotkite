@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.34.2 — 2026-11-20
+
+- **Fix: the media library opened behind addon dialogs.** Choosing *Library* for a photo inside a School block (or any addon dialog) opened the media library underneath the dialog, where it couldn't be used. The media library, the link dialog and short messages now always open on top.
+- **JotKite School 1.1.2: *Text and photo* on phones.** On phones the photo now comes straight after the heading, then the text and the button. Before, the photo came last, below the text, where it looked unconnected. Computers and tablets in landscape keep the side-by-side layout.
+
 ## 0.34.1 — 2026-11-18
 
 - **JotKite School 1.1.1: leave a category out of *Latest news*.** The *Latest news* block has a new *Leave out a category* choice. For example, leave out *Alumni stories* on the homepage when an *Alumni voices* block already shows them, so the same people don't appear twice. Posts without a category are still shown.
